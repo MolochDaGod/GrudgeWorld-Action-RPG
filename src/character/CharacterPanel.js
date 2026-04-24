@@ -14,15 +14,20 @@
  *   panel.refreshFromEquipManager(equipManager);
  */
 
-import { FACTIONS, RACE_ORDER, ARMOR_SLOTS, WEAPON_SLOTS } from './GrudgeFactionRegistry.js';
-import { AnimRetargeter } from './AnimRetargeter.js';
+import {
+  FACTIONS,
+  RACE_ORDER,
+  ARMOR_SLOTS,
+  WEAPON_SLOTS,
+} from "./GrudgeFactionRegistry.js";
+import { AnimRetargeter } from "./AnimRetargeter.js";
 
 // ─── Styles (injected once) ───────────────────────────────────────────────────
 
-const STYLE_ID = 'grudge-character-panel-styles';
+const STYLE_ID = "grudge-character-panel-styles";
 function _injectStyles() {
   if (document.getElementById(STYLE_ID)) return;
-  const style = document.createElement('style');
+  const style = document.createElement("style");
   style.id = STYLE_ID;
   style.textContent = `
     #grudge-character-panel {
@@ -105,9 +110,9 @@ function _injectStyles() {
   document.head.appendChild(style);
 }
 
-// ─── CharacterPanel ───────────────────────────────────────────────────────────
+// ─── CharacterPanelDOM (Three.js / DOM overlay version) ──────────────────────
 
-export class CharacterPanel {
+export class CharacterPanelDOM {
   /**
    * @param {object} opts
    * @param {Function} opts.onRaceChange   cb(raceId)
@@ -115,17 +120,17 @@ export class CharacterPanel {
    * @param {Function} opts.onAnimPlay     cb(animKey)
    */
   constructor({ onRaceChange, onEquipChange, onAnimPlay } = {}) {
-    this._onRaceChange  = onRaceChange  || (() => {});
+    this._onRaceChange = onRaceChange || (() => {});
     this._onEquipChange = onEquipChange || (() => {});
-    this._onAnimPlay    = onAnimPlay    || (() => {});
-    this._activeRace    = 'human';
-    this._slotSummary   = {};
-    this._raceButtons   = {};
+    this._onAnimPlay = onAnimPlay || (() => {});
+    this._activeRace = "human";
+    this._slotSummary = {};
+    this._raceButtons = {};
 
     // Retarget state
-    this._targetObject  = null;
-    this._targetMixer   = null;
-    this._retargeter    = null;
+    this._targetObject = null;
+    this._targetMixer = null;
+    this._retargeter = null;
 
     _injectStyles();
     this._buildDOM();
@@ -134,8 +139,8 @@ export class CharacterPanel {
   // ── Build DOM ─────────────────────────────────────────────────────────────
 
   _buildDOM() {
-    this.element = document.createElement('div');
-    this.element.id = 'grudge-character-panel';
+    this.element = document.createElement("div");
+    this.element.id = "grudge-character-panel";
 
     this.element.innerHTML = `
       <div class="cp-header">GRUDGE WARLORDS</div>
@@ -174,13 +179,14 @@ export class CharacterPanel {
   // ── Race Grid ─────────────────────────────────────────────────────────────
 
   _buildRaceGrid() {
-    const grid = this.element.querySelector('#cp-race-grid');
+    const grid = this.element.querySelector("#cp-race-grid");
     RACE_ORDER.forEach((raceId) => {
       const faction = FACTIONS[raceId];
-      const btn = document.createElement('button');
-      btn.className = 'cp-race-btn' + (raceId === this._activeRace ? ' active' : '');
+      const btn = document.createElement("button");
+      btn.className =
+        "cp-race-btn" + (raceId === this._activeRace ? " active" : "");
       btn.textContent = faction.name;
-      btn.addEventListener('click', () => this._selectRace(raceId));
+      btn.addEventListener("click", () => this._selectRace(raceId));
       this._raceButtons[raceId] = btn;
       grid.appendChild(btn);
     });
@@ -188,7 +194,7 @@ export class CharacterPanel {
 
   _selectRace(raceId) {
     Object.entries(this._raceButtons).forEach(([id, btn]) => {
-      btn.classList.toggle('active', id === raceId);
+      btn.classList.toggle("active", id === raceId);
     });
     this._activeRace = raceId;
     this._updateRaceInfo(raceId);
@@ -197,9 +203,11 @@ export class CharacterPanel {
 
   _updateRaceInfo(raceId) {
     const faction = FACTIONS[raceId];
-    this.element.querySelector('#cp-race-color-bar').style.background = faction.color;
-    this.element.querySelector('#cp-race-desc').textContent = faction.description;
-    const fl = this.element.querySelector('#cp-faction-label');
+    this.element.querySelector("#cp-race-color-bar").style.background =
+      faction.color;
+    this.element.querySelector("#cp-race-desc").textContent =
+      faction.description;
+    const fl = this.element.querySelector("#cp-faction-label");
     fl.textContent = `FACTION: ${faction.faction.toUpperCase()}`;
     fl.style.color = faction.color;
     this._updateStats(faction.stats);
@@ -209,18 +217,24 @@ export class CharacterPanel {
   // ── Stats ─────────────────────────────────────────────────────────────────
 
   _buildStats() {
-    const container = this.element.querySelector('#cp-stats');
+    const container = this.element.querySelector("#cp-stats");
     this._statFills = {};
-    this._statVals  = {};
+    this._statVals = {};
 
     const ATTRS = [
-      ['STR', 'str'], ['DEX', 'dex'], ['INT', 'int'], ['VIT', 'vit'],
-      ['WIS', 'wis'], ['LCK', 'lck'], ['CHA', 'cha'], ['END', 'end'],
+      ["STR", "str"],
+      ["DEX", "dex"],
+      ["INT", "int"],
+      ["VIT", "vit"],
+      ["WIS", "wis"],
+      ["LCK", "lck"],
+      ["CHA", "cha"],
+      ["END", "end"],
     ];
 
     ATTRS.forEach(([label, key]) => {
-      const row = document.createElement('div');
-      row.className = 'cp-stat-row';
+      const row = document.createElement("div");
+      row.className = "cp-stat-row";
       row.innerHTML = `
         <span class="cp-stat-label">${label}</span>
         <div class="cp-stat-track"><div class="cp-stat-fill" id="cp-fill-${key}" style="width:0%"></div></div>
@@ -228,7 +242,7 @@ export class CharacterPanel {
       `;
       container.appendChild(row);
       this._statFills[key] = row.querySelector(`#cp-fill-${key}`);
-      this._statVals[key]  = row.querySelector(`#cp-val-${key}`);
+      this._statVals[key] = row.querySelector(`#cp-val-${key}`);
     });
 
     this._updateStats(FACTIONS[this._activeRace].stats);
@@ -251,43 +265,52 @@ export class CharacterPanel {
   }
 
   _refreshEquipSlots() {
-    const container = this.element.querySelector('#cp-equip-container');
-    container.innerHTML = '';
+    const container = this.element.querySelector("#cp-equip-container");
+    container.innerHTML = "";
 
     const SLOT_DISPLAY = [
-      ['body', 'Body Armor'], ['arms', 'Arm Guards'], ['legs', 'Leg Guards'],
-      ['head', 'Helmet'], ['shoulders', 'Shoulders'], ['sword', 'Sword'],
-      ['axe', 'Axe'], ['hammer', 'Hammer'], ['bow', 'Bow'],
-      ['staff', 'Staff'], ['shield', 'Shield'],
+      ["body", "Body Armor"],
+      ["arms", "Arm Guards"],
+      ["legs", "Leg Guards"],
+      ["head", "Helmet"],
+      ["shoulders", "Shoulders"],
+      ["sword", "Sword"],
+      ["axe", "Axe"],
+      ["hammer", "Hammer"],
+      ["bow", "Bow"],
+      ["staff", "Staff"],
+      ["shield", "Shield"],
     ];
 
-    const BASE_ARMOR = ['body', 'arms', 'legs', 'head'];
+    const BASE_ARMOR = ["body", "arms", "legs", "head"];
 
     SLOT_DISPLAY.forEach(([slot, label]) => {
       const slotInfo = this._slotSummary[slot];
       const variants = slotInfo ? slotInfo.variants : [];
       if (variants.length === 0 && !BASE_ARMOR.includes(slot)) return;
 
-      const row = document.createElement('div');
-      row.className = 'cp-equip-row';
+      const row = document.createElement("div");
+      row.className = "cp-equip-row";
 
-      const lbl = document.createElement('span');
-      lbl.className = 'cp-equip-label';
+      const lbl = document.createElement("span");
+      lbl.className = "cp-equip-label";
       lbl.textContent = label;
       row.appendChild(lbl);
 
-      const displayVariants = variants.length > 0 ? variants : ['—'];
+      const displayVariants = variants.length > 0 ? variants : ["—"];
       displayVariants.forEach((v) => {
-        const btn = document.createElement('button');
-        btn.className = 'cp-equip-btn';
-        btn.textContent = v === 'default' ? '1' : v;
-        if (slotInfo && slotInfo.equipped === v) btn.classList.add('selected');
-        if (v === '—') {
+        const btn = document.createElement("button");
+        btn.className = "cp-equip-btn";
+        btn.textContent = v === "default" ? "1" : v;
+        if (slotInfo && slotInfo.equipped === v) btn.classList.add("selected");
+        if (v === "—") {
           btn.disabled = true;
         } else {
-          btn.addEventListener('click', () => {
-            row.querySelectorAll('.cp-equip-btn').forEach((b) => b.classList.remove('selected'));
-            btn.classList.add('selected');
+          btn.addEventListener("click", () => {
+            row
+              .querySelectorAll(".cp-equip-btn")
+              .forEach((b) => b.classList.remove("selected"));
+            btn.classList.add("selected");
             this._onEquipChange(slot, v);
           });
         }
@@ -301,21 +324,28 @@ export class CharacterPanel {
   // ── Animation Buttons ─────────────────────────────────────────────────────
 
   _buildAnimGrid() {
-    const grid = this.element.querySelector('#cp-anim-grid');
+    const grid = this.element.querySelector("#cp-anim-grid");
     const ANIM_BTNS = [
-      ['idle', 'Idle'], ['walk', 'Walk'], ['run', 'Run'], ['combatIdle', 'Combat Idle'],
-      ['attack1', 'Attack 1'], ['attack2', 'Attack 2'], ['attack3', 'Attack 3'],
-      ['block', 'Block'], ['hit', 'Hit'], ['death', 'Death'],
+      ["idle", "Idle"],
+      ["walk", "Walk"],
+      ["run", "Run"],
+      ["combatIdle", "Combat Idle"],
+      ["attack1", "Attack 1"],
+      ["attack2", "Attack 2"],
+      ["attack3", "Attack 3"],
+      ["block", "Block"],
+      ["hit", "Hit"],
+      ["death", "Death"],
     ];
 
     ANIM_BTNS.forEach(([key, label]) => {
-      const btn = document.createElement('button');
-      btn.className = 'cp-anim-btn';
+      const btn = document.createElement("button");
+      btn.className = "cp-anim-btn";
       btn.textContent = label;
-      btn.addEventListener('click', () => {
+      btn.addEventListener("click", () => {
         this._onAnimPlay(key);
-        btn.classList.add('flash');
-        setTimeout(() => btn.classList.remove('flash'), 300);
+        btn.classList.add("flash");
+        setTimeout(() => btn.classList.remove("flash"), 300);
       });
       grid.appendChild(btn);
     });
@@ -332,60 +362,70 @@ export class CharacterPanel {
    */
   setRetargetTarget(object3D, scene, mixer) {
     this._targetObject = object3D;
-    this._targetMixer  = mixer;
+    this._targetMixer = mixer;
     if (!this._retargeter) {
       this._retargeter = new AnimRetargeter(scene);
     }
-    this._setRetargetStatus(`Target: ${object3D.name || 'character'}. Drop a Mixamo GLB on the canvas.`);
+    this._setRetargetStatus(
+      `Target: ${object3D.name || "character"}. Drop a Mixamo GLB on the canvas.`,
+    );
   }
 
   _setRetargetStatus(msg) {
-    const el = this.element.querySelector('#cp-retarget-status');
+    const el = this.element.querySelector("#cp-retarget-status");
     if (el) el.textContent = msg;
   }
 
   _wireRetarget() {
     // Drop zone inside the panel itself
-    const dropHint = this.element.querySelector('#cp-retarget-drop-hint');
-    dropHint.addEventListener('dragover', (e) => {
+    const dropHint = this.element.querySelector("#cp-retarget-drop-hint");
+    dropHint.addEventListener("dragover", (e) => {
       e.preventDefault();
-      dropHint.classList.add('drag-over');
+      dropHint.classList.add("drag-over");
     });
-    dropHint.addEventListener('dragleave', () => dropHint.classList.remove('drag-over'));
-    dropHint.addEventListener('drop', async (e) => {
+    dropHint.addEventListener("dragleave", () =>
+      dropHint.classList.remove("drag-over"),
+    );
+    dropHint.addEventListener("drop", async (e) => {
       e.preventDefault();
-      dropHint.classList.remove('drag-over');
+      dropHint.classList.remove("drag-over");
       await this._handleGlbDrop(e.dataTransfer?.files?.[0]);
     });
 
     // Also wire the main canvas so designers can drag onto the 3D view
-    const canvas = document.getElementById('renderCanvas') || document.querySelector('canvas');
+    const canvas =
+      document.getElementById("renderCanvas") ||
+      document.querySelector("canvas");
     if (canvas) {
-      canvas.addEventListener('dragover', (e) => e.preventDefault());
-      canvas.addEventListener('drop', async (e) => {
+      canvas.addEventListener("dragover", (e) => e.preventDefault());
+      canvas.addEventListener("drop", async (e) => {
         e.preventDefault();
         await this._handleGlbDrop(e.dataTransfer?.files?.[0]);
       });
     }
 
     // List bones debug button
-    this.element.querySelector('#cp-list-bones-btn').addEventListener('click', () => {
-      if (this._targetObject) {
-        AnimRetargeter.listBones(this._targetObject);
-        this._setRetargetStatus('Bone list printed to console (F12).');
-      } else {
-        this._setRetargetStatus('Call setRetargetTarget() first.');
-      }
-    });
+    this.element
+      .querySelector("#cp-list-bones-btn")
+      .addEventListener("click", () => {
+        if (this._targetObject) {
+          AnimRetargeter.listBones(this._targetObject);
+          this._setRetargetStatus("Bone list printed to console (F12).");
+        } else {
+          this._setRetargetStatus("Call setRetargetTarget() first.");
+        }
+      });
   }
 
   async _handleGlbDrop(file) {
-    if (!file || !file.name.endsWith('.glb')) {
-      this._setRetargetStatus('Drop a .glb file only.');
+    if (!file || !file.name.endsWith(".glb")) {
+      this._setRetargetStatus("Drop a .glb file only.");
       return;
     }
     if (!this._targetObject || !this._retargeter) {
-      this._setRetargetStatus('No target set — call setRetargetTarget() first.');
+      this._setRetargetStatus(
+        "No target set — call setRetargetTarget() first.",
+      );
       return;
     }
 
@@ -395,32 +435,49 @@ export class CharacterPanel {
       const clipNames = await this._retargeter.loadSource(url);
       URL.revokeObjectURL(url);
 
-      const actions = this._retargeter.retargetOnto(this._targetObject, this._targetMixer);
+      const actions = this._retargeter.retargetOnto(
+        this._targetObject,
+        this._targetMixer,
+      );
       if (actions.length === 0) {
-        this._setRetargetStatus('No bones matched. Check console and bone map.');
+        this._setRetargetStatus(
+          "No bones matched. Check console and bone map.",
+        );
         return;
       }
 
       // Auto-play first retargeted clip
       actions[0].action.reset().play();
       this._setRetargetStatus(
-        `Retargeted ${actions.length} clip(s): ${actions.map((a) => a.name).join(', ')}`
+        `Retargeted ${actions.length} clip(s): ${actions.map((a) => a.name).join(", ")}`,
       );
     } catch (err) {
-      console.error('[CharacterPanel] Retarget failed: - CharacterPanel.js:410', err);
+      console.error(
+        "[CharacterPanel] Retarget failed: - CharacterPanel.js:410",
+        err,
+      );
       this._setRetargetStatus(`Error: ${err.message}`);
     }
   }
 
   // ── Public API ────────────────────────────────────────────────────────────
 
-  show()   { this.element.style.display = ''; }
-  hide()   { this.element.style.display = 'none'; }
-  toggle() { this.element.style.display = this.element.style.display === 'none' ? '' : 'none'; }
-  getActiveRace() { return this._activeRace; }
+  show() {
+    this.element.style.display = "";
+  }
+  hide() {
+    this.element.style.display = "none";
+  }
+  toggle() {
+    this.element.style.display =
+      this.element.style.display === "none" ? "" : "none";
+  }
+  getActiveRace() {
+    return this._activeRace;
+  }
 }
 
-// ─── CharacterPanel ───────────────────────────────────────────────────────────
+// ─── CharacterPanel (Babylon.GUI version — used by character_test scene) ─────
 
 export class CharacterPanel {
   /**
@@ -430,13 +487,13 @@ export class CharacterPanel {
    * @param {Function} onAnimPlay                       - cb(animKey) when animation is tested
    */
   constructor(gui, onRaceChange, onEquipChange, onAnimPlay) {
-    this._gui          = gui;
+    this._gui = gui;
     this._onRaceChange = onRaceChange;
     this._onEquipChange = onEquipChange;
-    this._onAnimPlay   = onAnimPlay;
-    this._activeRace   = 'human';
-    this._equipState   = {};
-    this._slotSummary  = {};
+    this._onAnimPlay = onAnimPlay;
+    this._activeRace = "human";
+    this._equipState = {};
+    this._slotSummary = {};
 
     this._build();
   }
@@ -445,21 +502,22 @@ export class CharacterPanel {
 
   _build() {
     // ─ Main wrapper (left panel) ─────────────────────────────────────────────
-    this._panel = new BABYLON.GUI.ScrollViewer('characterPanel');
-    this._panel.width        = '320px';
-    this._panel.height       = '100%';
-    this._panel.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-    this._panel.verticalAlignment   = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
-    this._panel.background   = PANEL_BG;
-    this._panel.barSize      = 6;
-    this._panel.barColor     = GOLD;
-    this._panel.barBackground = '#111';
+    this._panel = new BABYLON.GUI.ScrollViewer("characterPanel");
+    this._panel.width = "320px";
+    this._panel.height = "100%";
+    this._panel.horizontalAlignment =
+      BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+    this._panel.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
+    this._panel.background = PANEL_BG;
+    this._panel.barSize = 6;
+    this._panel.barColor = GOLD;
+    this._panel.barBackground = "#111";
     this._gui.addControl(this._panel);
 
-    this._stack = new BABYLON.GUI.StackPanel('cpStack');
-    this._stack.width   = '300px';
+    this._stack = new BABYLON.GUI.StackPanel("cpStack");
+    this._stack.width = "300px";
     this._stack.isVertical = true;
-    this._stack.paddingTop = '10px';
+    this._stack.paddingTop = "10px";
     this._panel.addControl(this._stack);
 
     this._buildHeader();
@@ -475,18 +533,18 @@ export class CharacterPanel {
   // ── Header ────────────────────────────────────────────────────────────────
 
   _buildHeader() {
-    const header = new BABYLON.GUI.TextBlock('cpHeader', 'GRUDGE WARLORDS');
-    header.height          = '40px';
-    header.color           = GOLD;
-    header.fontSize        = 16;
-    header.fontStyle       = 'bold';
-    header.fontFamily      = "'Cinzel', 'Georgia', serif";
-    header.letterSpacing   = 3;
+    const header = new BABYLON.GUI.TextBlock("cpHeader", "GRUDGE WARLORDS");
+    header.height = "40px";
+    header.color = GOLD;
+    header.fontSize = 16;
+    header.fontStyle = "bold";
+    header.fontFamily = "'Cinzel', 'Georgia', serif";
+    header.letterSpacing = 3;
     this._stack.addControl(header);
 
-    const sub = new BABYLON.GUI.TextBlock('cpSub', 'CHARACTER BUILDER');
-    sub.height   = '22px';
-    sub.color    = TEXT_DIM;
+    const sub = new BABYLON.GUI.TextBlock("cpSub", "CHARACTER BUILDER");
+    sub.height = "22px";
+    sub.color = TEXT_DIM;
     sub.fontSize = 10;
     sub.letterSpacing = 2;
     this._stack.addControl(sub);
@@ -495,15 +553,15 @@ export class CharacterPanel {
   // ── Race Selector (6 buttons) ─────────────────────────────────────────────
 
   _buildRaceSelector() {
-    const label = _sectionLabel('SELECT RACE');
+    const label = _sectionLabel("SELECT RACE");
     this._stack.addControl(label);
 
     this._raceButtons = {};
-    const grid = new BABYLON.GUI.Grid('raceGrid');
-    grid.height = '72px';
-    grid.addColumnDefinition(1/3, false);
-    grid.addColumnDefinition(1/3, false);
-    grid.addColumnDefinition(1/3, false);
+    const grid = new BABYLON.GUI.Grid("raceGrid");
+    grid.height = "72px";
+    grid.addColumnDefinition(1 / 3, false);
+    grid.addColumnDefinition(1 / 3, false);
+    grid.addColumnDefinition(1 / 3, false);
     grid.addRowDefinition(0.5, false);
     grid.addRowDefinition(0.5, false);
 
@@ -512,17 +570,21 @@ export class CharacterPanel {
       const row = Math.floor(i / 3);
       const col = i % 3;
 
-      const btn = BABYLON.GUI.Button.CreateSimpleButton(`rb_${raceId}`, faction.name);
-      btn.color         = raceId === this._activeRace ? GOLD : TEXT_DIM;
-      btn.background    = raceId === this._activeRace ? 'rgba(200,169,81,0.18)' : 'transparent';
-      btn.fontSize      = 10;
-      btn.fontStyle     = 'bold';
-      btn.thickness     = 1;
-      btn.cornerRadius  = 3;
-      btn.paddingLeft   = '2px';
-      btn.paddingRight  = '2px';
-      btn.paddingTop    = '2px';
-      btn.paddingBottom = '2px';
+      const btn = BABYLON.GUI.Button.CreateSimpleButton(
+        `rb_${raceId}`,
+        faction.name,
+      );
+      btn.color = raceId === this._activeRace ? GOLD : TEXT_DIM;
+      btn.background =
+        raceId === this._activeRace ? "rgba(200,169,81,0.18)" : "transparent";
+      btn.fontSize = 10;
+      btn.fontStyle = "bold";
+      btn.thickness = 1;
+      btn.cornerRadius = 3;
+      btn.paddingLeft = "2px";
+      btn.paddingRight = "2px";
+      btn.paddingTop = "2px";
+      btn.paddingBottom = "2px";
 
       btn.onPointerClickObservable.add(() => this._selectRace(raceId));
       this._raceButtons[raceId] = btn;
@@ -536,8 +598,8 @@ export class CharacterPanel {
     // Update button highlight
     for (const [id, btn] of Object.entries(this._raceButtons)) {
       const active = id === raceId;
-      btn.color      = active ? GOLD : TEXT_DIM;
-      btn.background = active ? 'rgba(200,169,81,0.18)' : 'transparent';
+      btn.color = active ? GOLD : TEXT_DIM;
+      btn.background = active ? "rgba(200,169,81,0.18)" : "transparent";
     }
     this._activeRace = raceId;
     this._updateRaceInfo(raceId);
@@ -548,25 +610,28 @@ export class CharacterPanel {
 
   _buildRaceInfo() {
     const faction = FACTIONS[this._activeRace];
-    const line = new BABYLON.GUI.TextBlock('cpRaceColor');
-    line.height       = '4px';
-    line.background   = faction.color;
+    const line = new BABYLON.GUI.TextBlock("cpRaceColor");
+    line.height = "4px";
+    line.background = faction.color;
     this._stack.addControl(line);
     this._raceColorBar = line;
 
-    const desc = new BABYLON.GUI.TextBlock('cpRaceDesc', faction.description);
-    desc.height       = '50px';
-    desc.color        = TEXT_DIM;
-    desc.fontSize     = 10;
+    const desc = new BABYLON.GUI.TextBlock("cpRaceDesc", faction.description);
+    desc.height = "50px";
+    desc.color = TEXT_DIM;
+    desc.fontSize = 10;
     desc.textWrapping = true;
-    desc.paddingLeft  = '10px';
-    desc.paddingRight = '10px';
+    desc.paddingLeft = "10px";
+    desc.paddingRight = "10px";
     this._stack.addControl(desc);
     this._raceDescBlock = desc;
 
-    const factionLabel = new BABYLON.GUI.TextBlock('cpFaction', `FACTION: ${faction.faction.toUpperCase()}`);
-    factionLabel.height   = '18px';
-    factionLabel.color    = faction.color;
+    const factionLabel = new BABYLON.GUI.TextBlock(
+      "cpFaction",
+      `FACTION: ${faction.faction.toUpperCase()}`,
+    );
+    factionLabel.height = "18px";
+    factionLabel.color = faction.color;
     factionLabel.fontSize = 9;
     factionLabel.letterSpacing = 1;
     this._stack.addControl(factionLabel);
@@ -576,9 +641,9 @@ export class CharacterPanel {
   _updateRaceInfo(raceId) {
     const faction = FACTIONS[raceId];
     this._raceColorBar.background = faction.color;
-    this._raceDescBlock.text      = faction.description;
-    this._factionLabel.text       = `FACTION: ${faction.faction.toUpperCase()}`;
-    this._factionLabel.color      = faction.color;
+    this._raceDescBlock.text = faction.description;
+    this._factionLabel.text = `FACTION: ${faction.faction.toUpperCase()}`;
+    this._factionLabel.color = faction.color;
     // Update stat bars
     this._updateStats(faction.stats);
     // Reset equip selectors for new race
@@ -588,48 +653,54 @@ export class CharacterPanel {
   // ── Stats display ──────────────────────────────────────────────────────────
 
   _buildStatsBlock() {
-    this._stack.addControl(_sectionLabel('BASE ATTRIBUTES'));
+    this._stack.addControl(_sectionLabel("BASE ATTRIBUTES"));
     this._statBars = {};
 
     const ATTRS = [
-      ['STR', 'str'], ['DEX', 'dex'], ['INT', 'int'], ['VIT', 'vit'],
-      ['WIS', 'wis'], ['LCK', 'lck'], ['CHA', 'cha'], ['END', 'end'],
+      ["STR", "str"],
+      ["DEX", "dex"],
+      ["INT", "int"],
+      ["VIT", "vit"],
+      ["WIS", "wis"],
+      ["LCK", "lck"],
+      ["CHA", "cha"],
+      ["END", "end"],
     ];
 
     for (const [label, key] of ATTRS) {
       const row = new BABYLON.GUI.StackPanel(`stat_${key}`);
       row.isVertical = false;
-      row.height     = '18px';
-      row.paddingLeft  = '10px';
-      row.paddingRight = '10px';
+      row.height = "18px";
+      row.paddingLeft = "10px";
+      row.paddingRight = "10px";
 
       const lbl = new BABYLON.GUI.TextBlock(`stat_lbl_${key}`, label);
-      lbl.width    = '40px';
-      lbl.color    = TEXT_DIM;
+      lbl.width = "40px";
+      lbl.color = TEXT_DIM;
       lbl.fontSize = 10;
       lbl.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
       row.addControl(lbl);
 
       const bar = new BABYLON.GUI.Rectangle(`stat_bar_${key}`);
-      bar.width       = '180px';
-      bar.height      = '8px';
-      bar.background  = '#333';
+      bar.width = "180px";
+      bar.height = "8px";
+      bar.background = "#333";
       bar.cornerRadius = 4;
-      bar.thickness   = 0;
+      bar.thickness = 0;
       bar.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
 
       const fill = new BABYLON.GUI.Rectangle(`stat_fill_${key}`);
-      fill.height     = '8px';
+      fill.height = "8px";
       fill.background = GOLD;
       fill.cornerRadius = 4;
-      fill.thickness  = 0;
+      fill.thickness = 0;
       fill.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
       bar.addControl(fill);
       row.addControl(bar);
 
-      const val = new BABYLON.GUI.TextBlock(`stat_val_${key}`, '0');
-      val.width    = '30px';
-      val.color    = GOLD_GLOW;
+      const val = new BABYLON.GUI.TextBlock(`stat_val_${key}`, "0");
+      val.width = "30px";
+      val.color = GOLD_GLOW;
       val.fontSize = 10;
       row.addControl(val);
 
@@ -653,8 +724,8 @@ export class CharacterPanel {
   // ── Equipment Slots ────────────────────────────────────────────────────────
 
   _buildEquipSection() {
-    this._stack.addControl(_sectionLabel('EQUIPMENT'));
-    this._equipSlotsContainer = new BABYLON.GUI.StackPanel('equipContainer');
+    this._stack.addControl(_sectionLabel("EQUIPMENT"));
+    this._equipSlotsContainer = new BABYLON.GUI.StackPanel("equipContainer");
     this._equipSlotsContainer.isVertical = true;
     this._stack.addControl(this._equipSlotsContainer);
     this._refreshEquipSlots();
@@ -674,63 +745,70 @@ export class CharacterPanel {
     this._equipSlotsContainer.clearControls();
 
     const SLOT_DISPLAY = [
-      ['body',      'Body Armor'],
-      ['arms',      'Arm Guards'],
-      ['legs',      'Leg Guards'],
-      ['head',      'Helmet'],
-      ['shoulders', 'Shoulders'],
-      ['sword',     'Sword'],
-      ['axe',       'Axe'],
-      ['hammer',    'Hammer'],
-      ['bow',       'Bow'],
-      ['staff',     'Staff'],
-      ['shield',    'Shield'],
+      ["body", "Body Armor"],
+      ["arms", "Arm Guards"],
+      ["legs", "Leg Guards"],
+      ["head", "Helmet"],
+      ["shoulders", "Shoulders"],
+      ["sword", "Sword"],
+      ["axe", "Axe"],
+      ["hammer", "Hammer"],
+      ["bow", "Bow"],
+      ["staff", "Staff"],
+      ["shield", "Shield"],
     ];
 
     for (const [slot, label] of SLOT_DISPLAY) {
       const slotInfo = this._slotSummary[slot];
       const variants = slotInfo ? slotInfo.variants : [];
-      if (variants.length === 0 && !['body', 'arms', 'legs', 'head'].includes(slot)) continue;
+      if (
+        variants.length === 0 &&
+        !["body", "arms", "legs", "head"].includes(slot)
+      )
+        continue;
 
       const row = new BABYLON.GUI.StackPanel(`equip_${slot}`);
       row.isVertical = false;
-      row.height     = '24px';
-      row.paddingLeft  = '10px';
-      row.paddingRight = '10px';
+      row.height = "24px";
+      row.paddingLeft = "10px";
+      row.paddingRight = "10px";
 
       const lbl = new BABYLON.GUI.TextBlock(`equip_lbl_${slot}`, label);
-      lbl.width    = '90px';
-      lbl.color    = TEXT_DIM;
+      lbl.width = "90px";
+      lbl.color = TEXT_DIM;
       lbl.fontSize = 10;
       lbl.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
       row.addControl(lbl);
 
       // Display variant buttons
-      const displayVariants = variants.length > 0 ? variants : ['—'];
+      const displayVariants = variants.length > 0 ? variants : ["—"];
       for (const v of displayVariants) {
-        const vBtn = BABYLON.GUI.Button.CreateSimpleButton(`ev_${slot}_${v}`, v === 'default' ? '1' : v);
-        vBtn.width        = `${Math.max(24, 220 / displayVariants.length)}px`;
-        vBtn.height       = '20px';
-        vBtn.color        = GOLD;
-        vBtn.background   = 'transparent';
-        vBtn.fontSize     = 9;
+        const vBtn = BABYLON.GUI.Button.CreateSimpleButton(
+          `ev_${slot}_${v}`,
+          v === "default" ? "1" : v,
+        );
+        vBtn.width = `${Math.max(24, 220 / displayVariants.length)}px`;
+        vBtn.height = "20px";
+        vBtn.color = GOLD;
+        vBtn.background = "transparent";
+        vBtn.fontSize = 9;
         vBtn.cornerRadius = 3;
-        vBtn.thickness    = 1;
+        vBtn.thickness = 1;
 
         if (slotInfo && slotInfo.equipped === v) {
-          vBtn.background = 'rgba(200,169,81,0.3)';
+          vBtn.background = "rgba(200,169,81,0.3)";
         }
 
-        if (v !== '—') {
+        if (v !== "—") {
           vBtn.onPointerClickObservable.add(() => {
             this._onEquipChange(slot, v);
             // Highlight selected
             for (const c of row.children) {
               if (c instanceof BABYLON.GUI.Button) {
-                c.background = 'transparent';
+                c.background = "transparent";
               }
             }
-            vBtn.background = 'rgba(200,169,81,0.3)';
+            vBtn.background = "rgba(200,169,81,0.3)";
           });
         } else {
           vBtn.isEnabled = false;
@@ -746,22 +824,22 @@ export class CharacterPanel {
   // ── Animation test buttons ────────────────────────────────────────────────
 
   _buildAnimSection() {
-    this._stack.addControl(_sectionLabel('ANIMATIONS'));
+    this._stack.addControl(_sectionLabel("ANIMATIONS"));
 
     const ANIM_BTNS = [
-      ['idle',       'Idle'],
-      ['walk',       'Walk'],
-      ['run',        'Run'],
-      ['combatIdle', 'Combat Idle'],
-      ['attack1',    'Attack 1'],
-      ['attack2',    'Attack 2'],
-      ['attack3',    'Attack 3'],
-      ['block',      'Block'],
-      ['hit',        'Hit'],
-      ['death',      'Death'],
+      ["idle", "Idle"],
+      ["walk", "Walk"],
+      ["run", "Run"],
+      ["combatIdle", "Combat Idle"],
+      ["attack1", "Attack 1"],
+      ["attack2", "Attack 2"],
+      ["attack3", "Attack 3"],
+      ["block", "Block"],
+      ["hit", "Hit"],
+      ["death", "Death"],
     ];
 
-    const grid = new BABYLON.GUI.Grid('animGrid');
+    const grid = new BABYLON.GUI.Grid("animGrid");
     grid.height = `${Math.ceil(ANIM_BTNS.length / 2) * 32}px`;
     grid.addColumnDefinition(0.5, false);
     grid.addColumnDefinition(0.5, false);
@@ -773,28 +851,30 @@ export class CharacterPanel {
       const row = Math.floor(i / 2);
       const col = i % 2;
       const btn = BABYLON.GUI.Button.CreateSimpleButton(`anim_${key}`, lbl);
-      btn.color       = GOLD;
-      btn.background  = 'transparent';
-      btn.fontSize    = 10;
-      btn.thickness   = 1;
+      btn.color = GOLD;
+      btn.background = "transparent";
+      btn.fontSize = 10;
+      btn.thickness = 1;
       btn.cornerRadius = 3;
-      btn.paddingLeft  = '4px';
-      btn.paddingRight = '4px';
-      btn.paddingTop   = '3px';
-      btn.paddingBottom = '3px';
+      btn.paddingLeft = "4px";
+      btn.paddingRight = "4px";
+      btn.paddingTop = "3px";
+      btn.paddingBottom = "3px";
       btn.onPointerClickObservable.add(() => {
         this._onAnimPlay(key);
         // Flash highlight
-        btn.background = 'rgba(200,169,81,0.35)';
-        setTimeout(() => { btn.background = 'transparent'; }, 300);
+        btn.background = "rgba(200,169,81,0.35)";
+        setTimeout(() => {
+          btn.background = "transparent";
+        }, 300);
       });
       grid.addControl(btn, row, col);
     });
 
     this._stack.addControl(grid);
     // Bottom padding
-    const pad = new BABYLON.GUI.Rectangle('cpBottom');
-    pad.height = '30px';
+    const pad = new BABYLON.GUI.Rectangle("cpBottom");
+    pad.height = "30px";
     pad.thickness = 0;
     this._stack.addControl(pad);
 
@@ -806,37 +886,44 @@ export class CharacterPanel {
   // updates and the new AnimationGroups become playable via the anim buttons.
 
   _buildRetargetSection() {
-    this._stack.addControl(_sectionLabel('MIXAMO RETARGET'));
+    this._stack.addControl(_sectionLabel("MIXAMO RETARGET"));
 
     // Status label
-    const statusLabel = new BABYLON.GUI.TextBlock('retargetStatus', 'Drop a Mixamo GLB onto the canvas');
-    statusLabel.height       = '32px';
-    statusLabel.color        = TEXT_DIM;
-    statusLabel.fontSize     = 9;
+    const statusLabel = new BABYLON.GUI.TextBlock(
+      "retargetStatus",
+      "Drop a Mixamo GLB onto the canvas",
+    );
+    statusLabel.height = "32px";
+    statusLabel.color = TEXT_DIM;
+    statusLabel.fontSize = 9;
     statusLabel.textWrapping = true;
-    statusLabel.paddingLeft  = '10px';
-    statusLabel.paddingRight = '10px';
+    statusLabel.paddingLeft = "10px";
+    statusLabel.paddingRight = "10px";
     this._stack.addControl(statusLabel);
     this._retargetStatus = statusLabel;
 
     // "List Bones" debug button
-    const listBtn = BABYLON.GUI.Button.CreateSimpleButton('listBonesBtn', 'List Target Bones');
-    listBtn.height       = '24px';
-    listBtn.color        = TEXT_DIM;
-    listBtn.background   = 'transparent';
-    listBtn.fontSize     = 9;
-    listBtn.thickness    = 1;
+    const listBtn = BABYLON.GUI.Button.CreateSimpleButton(
+      "listBonesBtn",
+      "List Target Bones",
+    );
+    listBtn.height = "24px";
+    listBtn.color = TEXT_DIM;
+    listBtn.background = "transparent";
+    listBtn.fontSize = 9;
+    listBtn.thickness = 1;
     listBtn.cornerRadius = 3;
-    listBtn.paddingLeft  = '10px';
-    listBtn.paddingRight = '10px';
-    listBtn.paddingTop   = '2px';
-    listBtn.paddingBottom = '2px';
+    listBtn.paddingLeft = "10px";
+    listBtn.paddingRight = "10px";
+    listBtn.paddingTop = "2px";
+    listBtn.paddingBottom = "2px";
     listBtn.onPointerClickObservable.add(() => {
       if (this._targetMesh) {
         AnimRetargeter.listBones(this._targetMesh);
-        this._retargetStatus.text = 'Bone list printed to console';
+        this._retargetStatus.text = "Bone list printed to console";
       } else {
-        this._retargetStatus.text = 'Set a target mesh first via setRetargetTarget()';
+        this._retargetStatus.text =
+          "Set a target mesh first via setRetargetTarget()";
       }
     });
     this._stack.addControl(listBtn);
@@ -857,24 +944,29 @@ export class CharacterPanel {
     if (!this._retargeter) {
       this._retargeter = new AnimRetargeter(scene);
     }
-    this._retargetStatus.text = `Target: ${mesh.name || 'character'}. Drop Mixamo GLB on canvas.`;
+    this._retargetStatus.text = `Target: ${mesh.name || "character"}. Drop Mixamo GLB on canvas.`;
   }
 
   _setupCanvasDrop() {
     // Use native DOM drag-drop on the renderCanvas (outside Babylon GUI)
-    const canvas = document.getElementById('renderCanvas');
+    const canvas = document.getElementById("renderCanvas");
     if (!canvas) return;
 
-    canvas.addEventListener('dragover', (e) => { e.preventDefault(); });
-    canvas.addEventListener('drop', async (e) => {
+    canvas.addEventListener("dragover", (e) => {
+      e.preventDefault();
+    });
+    canvas.addEventListener("drop", async (e) => {
       e.preventDefault();
       const file = e.dataTransfer?.files?.[0];
-      if (!file || !file.name.endsWith('.glb')) {
-        if (this._retargetStatus) this._retargetStatus.text = 'Drop a .glb file only';
+      if (!file || !file.name.endsWith(".glb")) {
+        if (this._retargetStatus)
+          this._retargetStatus.text = "Drop a .glb file only";
         return;
       }
       if (!this._targetMesh || !this._retargeter) {
-        if (this._retargetStatus) this._retargetStatus.text = 'No target mesh — call setRetargetTarget() first';
+        if (this._retargetStatus)
+          this._retargetStatus.text =
+            "No target mesh — call setRetargetTarget() first";
         return;
       }
 
@@ -888,23 +980,29 @@ export class CharacterPanel {
 
         const newGroups = this._retargeter.retargetOnto(this._targetMesh);
         if (newGroups.length === 0) {
-          this._retargetStatus.text = 'No bones matched — check console for details';
+          this._retargetStatus.text =
+            "No bones matched — check console for details";
           return;
         }
 
         // Start the first retargeted clip to test
         newGroups[0].start(true);
-        this._retargetStatus.text = `Retargeted ${newGroups.length} clip(s): ${newGroups.map((g) => g.name.replace('_retargeted', '')).join(', ')}`;
+        this._retargetStatus.text = `Retargeted ${newGroups.length} clip(s): ${newGroups.map((g) => g.name.replace("_retargeted", "")).join(", ")}`;
 
         // Notify parent so it can update the anim button grid
         if (this._onAnimPlay) {
           newGroups.forEach((g) => {
-            const cleanName = g.name.replace('_retargeted', '');
-            console.log(`[CharacterPanel] New retargeted clip available: "${cleanName}" - CharacterPanel.js:903`);
+            const cleanName = g.name.replace("_retargeted", "");
+            console.log(
+              `[CharacterPanel] New retargeted clip available: "${cleanName}" - CharacterPanel.js:903`,
+            );
           });
         }
       } catch (err) {
-        console.error('[CharacterPanel] Retarget failed: - CharacterPanel.js:907', err);
+        console.error(
+          "[CharacterPanel] Retarget failed: - CharacterPanel.js:907",
+          err,
+        );
         this._retargetStatus.text = `Error: ${err.message}`;
       }
     });
@@ -931,13 +1029,13 @@ export class CharacterPanel {
 
 function _sectionLabel(text) {
   const label = new BABYLON.GUI.TextBlock(null, text);
-  label.height       = '28px';
-  label.color        = GOLD;
-  label.fontSize     = 10;
-  label.fontStyle    = 'bold';
+  label.height = "28px";
+  label.color = GOLD;
+  label.fontSize = 10;
+  label.fontStyle = "bold";
   label.letterSpacing = 2;
-  label.paddingLeft  = '10px';
-  label.paddingTop   = '8px';
+  label.paddingLeft = "10px";
+  label.paddingTop = "8px";
   label.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
   return label;
 }
