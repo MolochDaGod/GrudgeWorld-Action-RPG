@@ -15,20 +15,20 @@
  *   actions[0].action.play();
  */
 
-import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { SkeletonUtils } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import { MIXAMO_TO_BIP001 } from './equips/mixamoBoneMap.js';
+import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
+import { MIXAMO_TO_BIP001 } from "./equips/mixamoBoneMap.js";
 
 export class AnimRetargeter {
   /**
    * @param {THREE.Scene} scene
    */
   constructor(scene) {
-    this._scene   = scene;
-    this._loader  = new GLTFLoader();
-    this._srcClips    = [];   // THREE.AnimationClip[] from source GLB
-    this._srcRootObj  = null; // source scene Object3D (hidden, provides skeleton)
+    this._scene = scene;
+    this._loader = new GLTFLoader();
+    this._srcClips = []; // THREE.AnimationClip[] from source GLB
+    this._srcRootObj = null; // source scene Object3D (hidden, provides skeleton)
   }
 
   // ── Load Mixamo animation GLB ──────────────────────────────────────────────
@@ -45,13 +45,15 @@ export class AnimRetargeter {
     }
 
     this._srcRootObj = gltf.scene;
-    this._srcRootObj.visible = false;   // skeleton only — hide geometry
+    this._srcRootObj.visible = false; // skeleton only — hide geometry
     this._scene.add(this._srcRootObj);
 
     this._srcClips = gltf.animations;
 
-    console.log(`[AnimRetargeter] Loaded ${this._srcClips.length} clips: - AnimRetargeter.js:53`,
-      this._srcClips.map((c) => c.name));
+    console.log(
+      `[AnimRetargeter] Loaded ${this._srcClips.length} clips: - AnimRetargeter.js:53`,
+      this._srcClips.map((c) => c.name),
+    );
     return this._srcClips.map((c) => c.name);
   }
 
@@ -64,14 +66,16 @@ export class AnimRetargeter {
    */
   retargetOnto(targetObject, mixer, clipNames = null) {
     if (!this._srcClips.length || !this._srcRootObj) {
-      console.error('[AnimRetargeter] No source loaded  call loadSource() first - AnimRetargeter.js:67');
+      console.error(
+        "[AnimRetargeter] No source loaded  call loadSource() first - AnimRetargeter.js:67",
+      );
       return [];
     }
 
     // retargetClip maps bone names via the `names` option: { sourceName: targetName }
     const retargetOptions = {
-      hip:   'Bip001 Pelvis',   // root/hip bone name on the TARGET skeleton
-      names: MIXAMO_TO_BIP001,  // { 'mixamorig:Hips': 'Bip001 Pelvis', ... }
+      hip: "Bip001 Pelvis", // root/hip bone name on the TARGET skeleton
+      names: MIXAMO_TO_BIP001, // { 'mixamorig:Hips': 'Bip001 Pelvis', ... }
     };
 
     const toProcess = clipNames
@@ -92,14 +96,21 @@ export class AnimRetargeter {
         retargeted.name = clip.name; // keep original name for lookup
         const action = mixer.clipAction(retargeted);
         actions.push({ name: clip.name, action });
-        console.log(`[AnimRetargeter] Retargeted "${clip.name}" - AnimRetargeter.js:95`);
+        console.log(
+          `[AnimRetargeter] Retargeted "${clip.name}" - AnimRetargeter.js:95`,
+        );
       } catch (e) {
-        console.warn(`[AnimRetargeter] Failed to retarget "${clip.name}": - AnimRetargeter.js:97`, e.message);
+        console.warn(
+          `[AnimRetargeter] Failed to retarget "${clip.name}": - AnimRetargeter.js:97`,
+          e.message,
+        );
       }
     }
 
     if (actions.length === 0) {
-      console.warn('[AnimRetargeter] No clips retargeted  check MIXAMO_TO_BIP001 map matches your skeleton - AnimRetargeter.js:102');
+      console.warn(
+        "[AnimRetargeter] No clips retargeted  check MIXAMO_TO_BIP001 map matches your skeleton - AnimRetargeter.js:102",
+      );
     }
 
     return actions;
@@ -118,7 +129,8 @@ export class AnimRetargeter {
   static listBones(object) {
     const bones = [];
     object.traverse((obj) => {
-      if (obj.isBone || obj.isSkinnedMesh) bones.push(`${obj.type}: ${obj.name}`);
+      if (obj.isBone || obj.isSkinnedMesh)
+        bones.push(`${obj.type}: ${obj.name}`);
     });
     console.table(bones);
     return bones;

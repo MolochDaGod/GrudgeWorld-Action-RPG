@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <rect width="64" height="64" rx="8" fill="#1a1008"/>
+  <!-- skull dome -->
+  <ellipse cx="32" cy="27" rx="16" ry="14" fill="#f5ca56"/>
+  <!-- eye sockets -->
+  <ellipse cx="26" cy="27" rx="5" ry="6" fill="#1a1008"/>
+  <ellipse cx="38" cy="27" rx="5" ry="6" fill="#1a1008"/>
+  <!-- nose cavity -->
+  <path d="M30 35 L32 38 L34 35 Z" fill="#1a1008"/>
+  <!-- jaw -->
+  <rect x="20" y="38" width="24" height="9" rx="3" fill="#f5ca56"/>
+  <!-- teeth -->
+  <rect x="23" y="38" width="4" height="5" rx="1" fill="#1a1008"/>
+  <rect x="30" y="38" width="4" height="5" rx="1" fill="#1a1008"/>
+  <rect x="37" y="38" width="4" height="5" rx="1" fill="#1a1008"/>
+  <!-- crown spikes -->
+  <polygon points="16,20 13,10 20,16" fill="#f5ca56"/>
+  <polygon points="32,15 32,4 38,15" fill="#f5ca56"/>
+  <polygon points="48,20 51,10 44,16" fill="#f5ca56"/>
+  <!-- glow ring -->
+  <ellipse cx="32" cy="27" rx="17" ry="15" fill="none" stroke="#f5ca56" stroke-width="1.5" opacity="0.4"/>
+</svg>
