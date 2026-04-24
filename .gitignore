@@ -1,0 +1,38 @@
+# Zip archives (asset source packs)
+*.zip
+*.rar
+*.7z
+*.tar.gz
+
+# Extracted / temp asset folders
+_extracted/
+_temp/
+__MACOSX/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor folders
+.vscode/
+.history/
+.idea/
+
+# Node (if ever needed)
+node_modules/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Render / CI
+.env
+.env.local
+.env.*.local
