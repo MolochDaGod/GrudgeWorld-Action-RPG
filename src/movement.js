@@ -266,8 +266,8 @@ function handleClick() {
   }
 }
 
-// mousedown versus click
-// document.getElementById("renderCanvas").addEventListener('click', handleClick);
+// Re-enable LMB combo attacks
+document.getElementById("renderCanvas").addEventListener('click', handleClick);
 
 window.addEventListener("keydown", onKeyDown);
 function onKeyDown(event) {
@@ -279,21 +279,23 @@ function onKeyDown(event) {
     if (PLAYER.target && PLAYER.target.health)
       SPELLS.thunderball.cast(PLAYER.health, PLAYER.target.health);
   }
-  // 2 — Triple Orb: spinning shape → 3 colour-coded orbs → 3 random enemies 15m (8 dmg each)
+  // 2 — Triple Orb: AOE — no target needed
   if (event.key === "2") {
-    SPELLS.tripleOrb.castAOE(PLAYER.health);
+    if (PLAYER.health) SPELLS.tripleOrb.castAOE(PLAYER.health);
   }
   // 4 — combo trigger
   if (event.key === "4") {
     DoCombo();
   }
-  // 5 — heavy swing
+  // 5 — heavy swing (requires target)
   if (event.key === "5") {
-    SPELLS.heavySwing.cast(PLAYER.health, PLAYER.target.health);
+    if (PLAYER.target && PLAYER.target.health && PLAYER.health)
+      SPELLS.heavySwing.cast(PLAYER.health, PLAYER.target.health);
   }
-  // c — fireball
+  // c — fireball / self-cast (requires target)
   if (event.key === "c") {
-    SPELLS.fireball.cast(PLAYER.health, PLAYER.target.health);
+    if (PLAYER.target && PLAYER.target.health && PLAYER.health)
+      SPELLS.fireball.cast(PLAYER.health, PLAYER.target.health);
   }
 }
 
@@ -432,7 +434,7 @@ function handleCharacterMovement(
       anim.Running.start(true, 1.1, anim.Running.from, anim.Running.to, false);
     }
   }
-  if (inputMap["q"] || inputMap["ArrowLeft"]) {
+  if (inputMap["q"] || inputMap["a"] || inputMap["ArrowLeft"]) {
     moveDirection.subtractInPlace(right.scaleInPlace(0.7));
     hero.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(
       forwardAngle,
@@ -460,7 +462,7 @@ function handleCharacterMovement(
       anim.Running.start(true, 1.1, anim.Running.from, anim.Running.to, false);
     }
   }
-  if (inputMap["e"] || inputMap["ArrowRight"]) {
+  if (inputMap["e"] || inputMap["d"] || inputMap["ArrowRight"]) {
     moveDirection.addInPlace(right.scaleInPlace(0.7));
     hero.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(
       forwardAngle,
@@ -489,8 +491,8 @@ function handleCharacterMovement(
     }
   }
 
-  // do for all four directions
-  if (inputMap["q"] && inputMap["w"]) {
+  // do for all four directions — diagonal speed normalisation (0.72×)
+  if ((inputMap["q"] || inputMap["a"]) && inputMap["w"]) {
     hero.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(
       forwardAngle,
       3.14,
@@ -498,6 +500,23 @@ function handleCharacterMovement(
     );
     var rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(
       (3 * Math.PI) / 4,
+      0,
+      0,
+    );
+    hero.rotationQuaternion = rotationQuaternion.multiply(
+      hero.rotationQuaternion,
+    );
+    moveDirection.scaleInPlace(0.72);
+  }
+
+  if ((inputMap["e"] || inputMap["d"]) && inputMap["w"]) {
+    hero.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(
+      forwardAngle,
+      3.14,
+      0,
+    );
+    var rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(
+      -(3 * Math.PI) / 4,
       0,
       0,
     );
@@ -554,7 +573,9 @@ function handleCharacterMovement(
     !inputMap["w"] &&
     !inputMap["s"] &&
     !inputMap["q"] &&
+    !inputMap["a"] &&
     !inputMap["e"] &&
+    !inputMap["d"] &&
     !SPRINTING &&
     !mobileMoving
   ) {
