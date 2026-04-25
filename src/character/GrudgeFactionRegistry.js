@@ -82,19 +82,21 @@ export const FACTIONS = {
 /** Ordered list for UI display */
 export const RACE_ORDER = ['human', 'barbarian', 'elf', 'dwarf', 'orc', 'undead'];
 
-/** Shared animation pack paths (Bip001 skeleton - works across all 6 races) */
+/**
+ * Shared animation pack paths (Bip001 skeleton — shared across all 6 races).
+ * Files verified present in assets/characters/races/animations/
+ * NOTE: run.fbx and walk.fbx are not in the assets folder — use combatRun for movement.
+ */
 export const ANIMATION_PACKS = {
   idle:        './assets/characters/races/animations/idle.fbx',
-  run:         './assets/characters/races/animations/run.fbx',
-  walk:        './assets/characters/races/animations/walk.fbx',
   combatIdle:  './assets/characters/races/animations/combat_idle.fbx',
+  combatRun:   './assets/characters/races/animations/combat_run.fbx',
   attack1:     './assets/characters/races/animations/attack1.fbx',
   attack2:     './assets/characters/races/animations/attack2.fbx',
   attack3:     './assets/characters/races/animations/attack3.fbx',
   death:       './assets/characters/races/animations/death.fbx',
   hit:         './assets/characters/races/animations/hit.fbx',
   block:       './assets/characters/races/animations/block.fbx',
-  combatRun:   './assets/characters/races/animations/combat_run.fbx',
 };
 
 /**

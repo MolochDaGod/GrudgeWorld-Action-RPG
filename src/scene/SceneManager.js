@@ -1,42 +1,58 @@
-import { createNight } from './scenes/night.js';
-import { createDayDynamicTerrain } from './scenes/day.js';
-import { createOutdoor } from './scenes/outdoor.js';
-import { createRoom } from './scenes/room.js';
-import { createUnderground } from './scenes/underground.js';
-import { createTown } from './scenes/town.js';
-import { createRoomGI } from './scenes/roomGI.js';
-import { createInn } from './scenes/inn.js';
-import { createBuilder } from './scenes/builder.js';
-import { createCharacterTest } from "./scenes/character_test.js";
+/**
+ * SceneManager.js
+ * Grudge Warlords — Scene orchestrator
+ *
+ * Active scenes:
+ *   outdoor        → Full open-world map  (default)
+ *   inn            → Interior / tavern
+ *   builder        → Procedural world builder + level editor
+ *   character_test → Race viewer & equipment tester   (?scene=character_test)
+ *
+ * Navigation: floating overlay top-center (click scene button or press hotkeys).
+ *   F1 → outdoor | F2 → inn | F3 → builder | F4 → character_test
+ */
+
+import { createOutdoor }       from './scenes/outdoor.js';
+import { createInn }           from './scenes/inn.js';
+import { createBuilder }       from './scenes/builder.js';
+import { createCharacterTest } from './scenes/character_test.js';
+
+// ─── Scene catalog ────────────────────────────────────────────────────────────
+
+const SCENE_CATALOG = [
+  { key: 'outdoor',        label: '🌲 Outdoor',    fn: createOutdoor,       hotkey: 'F1' },
+  { key: 'inn',            label: '🏠 Inn',         fn: createInn,           hotkey: 'F2' },
+  { key: 'builder',        label: '🔨 Builder',     fn: createBuilder,       hotkey: 'F3' },
+  { key: 'character_test', label: '⚔️ Characters',  fn: createCharacterTest, hotkey: 'F4' },
+];
+
+// ─── SceneManager ─────────────────────────────────────────────────────────────
 
 class SceneManager {
-  constructor(canvasId, engine) {
-    this.canvas = document.getElementById(canvasId);
-    this.engine = new BABYLON.Engine(this.canvas, true);
+  constructor(canvasId) {
+    this.canvas      = document.getElementById(canvasId);
+    this.engine      = new BABYLON.Engine(this.canvas, true);
     this.guiTextures = new Map();
-    this.scenes = [];
+    this.scenes      = [];
     this.activeScene = null;
-    this.sceneCreators = {
-      night: createNight,
-      day: createDayDynamicTerrain,
-      outdoor: createOutdoor,
-      room: createRoom,
-      underground: createUnderground,
-      town: createTown,
-      roomGI: createRoomGI,
-      inn: createInn,
-      builder: createBuilder,
-      character_test: createCharacterTest,
-    };
+    this._activeKey  = null;
+    this._nav        = null;      // DOM nav overlay
+    this._loading    = false;
+
+    // Build lookup maps from catalog
+    this.sceneCreators = {};
+    for (const entry of SCENE_CATALOG) {
+      this.sceneCreators[entry.key] = entry.fn;
+    }
   }
 
+  // ── Scene loading ──────────────────────────────────────────────────────────
 
-  async loadScene(sceneCreationFunction) {
-    const scene = await sceneCreationFunction(this.engine);
-    scene.damagePopupAnimationGroup = new BABYLON.AnimationGroup("popupAnimation", scene);
+  async loadScene(fn) {
+    const scene = await fn(this.engine);
+    scene.damagePopupAnimationGroup = new BABYLON.AnimationGroup('popupAnimation', scene);
     this.scenes.push(scene);
-    this.guiTextures.set(scene, new BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI", true, scene));
-    this.activeGUI = this.guiTextures.get(this.activeScene);
+    this.guiTextures.set(scene, BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI('UI', true, scene));
     return scene;
   }
 
@@ -44,61 +60,133 @@ class SceneManager {
     if (this.activeScene) {
       this.engine.stopRenderLoop();
       if (DEBUG) this.activeScene.debugLayer.hide();
-      //   this.activeScene.dispose(); // Optional: dispose only if not planning to return to this scene
     }
     this.activeScene = this.scenes[index];
-    this.activeGUI = this.guiTextures.get(this.activeScene);
-    this.engine.runRenderLoop(() => {
-      this.activeScene.render();
-    });
-
+    this.activeGUI   = this.guiTextures.get(this.activeScene);
+    this.engine.runRenderLoop(() => this.activeScene.render());
     if (DEBUG) this.activeScene.debugLayer.show();
   }
 
-  // todo map of scenes near the current scene
-  // in this case, just load starting zone
-  async start() {
+  /** Navigate to a named scene key; disposes current and loads fresh */
+  async navigateTo(key) {
+    if (this._loading || key === this._activeKey) return;
+    const entry = SCENE_CATALOG.find(e => e.key === key);
+    if (!entry) return;
 
-    let timeout = 100;
-    if (!FAST_RELOAD) timeout = 1000;
-    setTimeout(() => {
-      this.canvas.classList.add('visible');
-    }, timeout);
+    this._loading = true;
+    this._updateNav(key, true);
 
-    const urlParams = new URLSearchParams(window.location.search);
+    // Dispose active scene to free memory
+    if (this.activeScene) {
+      this.engine.stopRenderLoop();
+      this.activeScene.dispose();
+      this.scenes = [];
+      this.guiTextures.clear();
+    }
 
-    const debugParam = urlParams.get('debug');
-    if (debugParam === 'true') { DEBUG = true; }
+    // Fade canvas out
+    this.canvas.classList.remove('visible');
+    await new Promise(r => setTimeout(r, 400));
 
-    const sceneParam = urlParams.get('scene');
-    const defaultScene = this.sceneCreators[sceneParam] || this.sceneCreators.outdoor; // Default to outdoor if no valid scene parameter
-
-    await this.loadScene(defaultScene);
+    await this.loadScene(entry.fn);
     await this.switchToScene(0);
+    this._activeKey = key;
+    this._loading   = false;
+
+    this.canvas.classList.add('visible');
+    this._updateNav(key, false);
+    this.canvas.focus();
+  }
+
+  // ── Entry point ────────────────────────────────────────────────────────────
+
+  async start() {
+    const urlParams  = new URLSearchParams(window.location.search);
+    if (urlParams.get('debug') === 'true') DEBUG = true;
+
+    const sceneKey   = urlParams.get('scene');
+    const startEntry = SCENE_CATALOG.find(e => e.key === sceneKey) || SCENE_CATALOG[0];
+
+    // Fade-in delay
+    const fadeDelay  = FAST_RELOAD ? 100 : 1000;
+    setTimeout(() => this.canvas.classList.add('visible'), fadeDelay);
+
+    await this.loadScene(startEntry.fn);
+    await this.switchToScene(0);
+    this._activeKey = startEntry.key;
     this.canvas.focus();
 
-    // Uncomment this for key based scene switching. 
-    // await this.loadScene(this.sceneCreators['inn']);
-    // await this.loadScene(this.sceneCreators['builder']);
-    // Setup scene switching logic, e.g., based on user input or game events
-    // window.addEventListener('keydown', (e) => {
-    //   if (e.key === 'i') {
-    //     this.switchToScene(0);
-    //   } else if (e.key === 'o') {
-    //     this.switchToScene(1);
-    //   } else if (e.key === 'p') {
-    //     this.switchToScene(2);
-    //   }
-    // });
+    this._buildNav();
+    this._updateNav(startEntry.key, false);
 
-    window.addEventListener('resize', () => {
-      this.engine.resize();
+    // Hotkeys F1–F4
+    window.addEventListener('keydown', (e) => {
+      const entry = SCENE_CATALOG.find(en => en.hotkey === e.key);
+      if (entry) { e.preventDefault(); this.navigateTo(entry.key); }
     });
 
-    const endTime = performance.now();
-    const domLoadTime = endTime - startTime;
-    console.log(`Scene loaded in ${domLoadTime.toFixed(2)} milliseconds`);
+    window.addEventListener('resize', () => this.engine.resize());
 
+    const endTime = performance.now();
+    console.log(`Scene "${startEntry.key}" loaded in ${(endTime - startTime).toFixed(0)} ms`);
+  }
+
+  // ── Nav overlay ────────────────────────────────────────────────────────────
+
+  _buildNav() {
+    const nav = document.createElement('div');
+    nav.id = 'grudgeNav';
+    nav.style.cssText = `
+      position:fixed; top:0; left:50%; transform:translateX(-50%);
+      display:flex; gap:4px; z-index:9999; padding:6px 10px;
+      background:rgba(4,4,8,0.75); border-bottom-left-radius:10px; border-bottom-right-radius:10px;
+      border:1px solid rgba(200,169,81,0.25); border-top:none;
+      backdrop-filter:blur(6px); pointer-events:auto;
+      font-family:'Open Sans','Helvetica Neue',sans-serif;
+    `;
+
+    for (const entry of SCENE_CATALOG) {
+      const btn = document.createElement('button');
+      btn.dataset.sceneKey = entry.key;
+      btn.textContent = `${entry.label}`;
+      btn.title = `${entry.hotkey}`;
+      btn.style.cssText = `
+        padding:4px 12px; font-size:11px; letter-spacing:1px; cursor:pointer;
+        background:transparent; border:1px solid transparent;
+        color:rgba(200,169,81,0.7); border-radius:6px;
+        transition:all 0.2s; white-space:nowrap;
+      `;
+      btn.addEventListener('mouseenter', () => {
+        if (btn.dataset.sceneKey !== this._activeKey)
+          btn.style.borderColor = 'rgba(200,169,81,0.5)';
+      });
+      btn.addEventListener('mouseleave', () => {
+        if (btn.dataset.sceneKey !== this._activeKey)
+          btn.style.borderColor = 'transparent';
+      });
+      btn.addEventListener('click', () => this.navigateTo(entry.key));
+      nav.appendChild(btn);
+    }
+
+    document.body.appendChild(nav);
+    this._nav = nav;
+  }
+
+  _updateNav(activeKey, isLoading) {
+    if (!this._nav) return;
+    for (const btn of this._nav.querySelectorAll('button')) {
+      const key = btn.dataset.sceneKey;
+      const isActive = key === activeKey;
+      btn.style.color      = isActive ? '#c8a951' : 'rgba(200,169,81,0.6)';
+      btn.style.borderColor= isActive ? 'rgba(200,169,81,0.7)' : 'transparent';
+      btn.style.background = isActive ? 'rgba(200,169,81,0.1)' : 'transparent';
+      btn.disabled = isLoading;
+      if (isLoading && isActive) btn.textContent = '⏳ Loading…';
+      else {
+        const entry = SCENE_CATALOG.find(e => e.key === key);
+        if (entry) btn.textContent = entry.label;
+      }
+    }
   }
 }
 

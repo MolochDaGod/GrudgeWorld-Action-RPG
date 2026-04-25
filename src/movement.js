@@ -292,8 +292,8 @@ function onKeyDown(event) {
     if (PLAYER.target && PLAYER.target.health && PLAYER.health)
       SPELLS.heavySwing.cast(PLAYER.health, PLAYER.target.health);
   }
-  // c — fireball / self-cast (requires target)
-  if (event.key === "c") {
+  // r — fireball / self-cast (requires target) [was 'c', moved to avoid GrudgeCamera FPS toggle conflict]
+  if (event.key === "r") {
     if (PLAYER.target && PLAYER.target.health && PLAYER.health)
       SPELLS.fireball.cast(PLAYER.health, PLAYER.target.health);
   }
@@ -663,7 +663,7 @@ function handleCharacterMovement(
     }
   }
 
-  if (inputMap["c"]) {
+  if (inputMap["r"]) {
     // anim.Running.stop();
     if (!anim.Roll.isPlaying && !anim.Running.isPlaying) {
       for (let key in anim) {
