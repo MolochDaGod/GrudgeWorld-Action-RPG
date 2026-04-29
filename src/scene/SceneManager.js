@@ -16,6 +16,7 @@ import { createOutdoor }       from './scenes/outdoor.js';
 import { createInn }           from './scenes/inn.js';
 import { createBuilder }       from './scenes/builder.js';
 import { createCharacterTest } from './scenes/character_test.js';
+import { buildHotbar }         from '../utils/Hotbar.js';
 
 // ─── Scene catalog ────────────────────────────────────────────────────────────
 
@@ -118,6 +119,8 @@ class SceneManager {
 
     this._buildNav();
     this._updateNav(startEntry.key, false);
+    buildHotbar();
+    this._buildControlsHelp();
 
     // Hotkeys F1–F4
     window.addEventListener('keydown', (e) => {
@@ -129,6 +132,32 @@ class SceneManager {
 
     const endTime = performance.now();
     console.log(`Scene "${startEntry.key}" loaded in ${(endTime - startTime).toFixed(0)} ms`);
+  }
+
+  // ── Controls help ───────────────────────────────────────────────────────────
+  _buildControlsHelp() {
+    if (document.getElementById('grudgeControlsHelp')) return;
+    const help = document.createElement('div');
+    help.id = 'grudgeControlsHelp';
+    help.style.cssText = `
+      position:fixed; bottom:14px; right:14px;
+      background:rgba(4,4,8,0.7); color:#c8a951;
+      border:1px solid rgba(200,169,81,0.25);
+      border-radius:8px; padding:8px 12px;
+      font-family:'Open Sans','Helvetica Neue',sans-serif;
+      font-size:11px; letter-spacing:0.5px; line-height:1.5;
+      z-index:996; pointer-events:none; opacity:0.85;
+      max-width:240px;
+    `;
+    help.innerHTML = `
+      <div style="font-weight:bold; letter-spacing:2px; margin-bottom:4px;">CONTROLS</div>
+      <div><b>WASD</b> / Arrows — move</div>
+      <div><b>Space</b> — roll &nbsp; <b>Shift+W</b> — sprint (toggle <b>F</b>)</div>
+      <div><b>LMB</b> — attack &nbsp; <b>Tab</b> — cycle target</div>
+      <div><b>RMB</b> — aim &nbsp; <b>X</b> — swap shoulder &nbsp; <b>C</b> — FPS</div>
+      <div><b>1 / 2 / 5 / R</b> — spells &nbsp; <b>F1–F4</b> — scenes</div>
+    `;
+    document.body.appendChild(help);
   }
 
   // ── Nav overlay ────────────────────────────────────────────────────────────

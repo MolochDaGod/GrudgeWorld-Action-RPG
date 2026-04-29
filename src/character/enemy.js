@@ -160,13 +160,13 @@ function getTerrainHeightAt(x, z) {
 
 function attackIfClose(scene, enemy, player, enemyAttackDistance) {
   scene.registerBeforeRender(() => {
-    if (!enemy.isAlive) return;
+    if (!enemy.health || !enemy.health.isAlive) return;
     if (
       BABYLON.Vector3.Distance(enemy.position, player.position) <
       enemyAttackDistance
     ) {
-      console.log("Enemy is attacking!");
-      // Implement attack logic here
+      // Throttled attack hook — actual damage is dealt by spell system
+      // when the player is within range; left as a future hook.
     }
   });
 }

@@ -117,30 +117,29 @@ export function setupInputHandling(
   }
 
   function moveCharacterToPoint(point, character, scene) {
-    // const pickResult = scene.pick(point.x, point.y);
     // if hit an enemy, don't move just attack
     const hitEnemy = pickEnemy(scene, point.x, point.y);
     const pickResult = pickTerrain(scene, point.x, point.y);
-    if (pickResult.hit && !hitEnemy) {
+    if (!pickResult || !pickResult.hit || !pickResult.pickedPoint) return;
+    if (!hitEnemy) {
       const distanceToTarget = BABYLON.Vector3.Distance(
         character.position,
         pickResult.pickedPoint,
       );
       if (distanceToTarget > attackDistance) {
-        const target = pickResult.pickedPoint;
-        character.touchTarget = target;
+        character.touchTarget = pickResult.pickedPoint;
       }
     } else {
       const direction = pickResult.pickedPoint
         .subtract(character.position)
         .normalize();
-      let forwardAngle = Math.atan2(direction.x, direction.z);
+      const forwardAngle = Math.atan2(direction.x, direction.z);
       hero.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(
         forwardAngle,
         3.14,
         0,
       );
-      var rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(
+      const rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(
         Math.PI,
         0,
         0,
@@ -148,7 +147,6 @@ export function setupInputHandling(
       hero.rotationQuaternion = rotationQuaternion.multiply(
         hero.rotationQuaternion,
       );
-      console.log("hit close");
     }
   }
 

@@ -28,12 +28,14 @@ export async function createOutdoor(engine) {
   try {
     grudgeCam = new GrudgeCamera(scene, engine, character, null); // hero passed later
     camera = grudgeCam.camera; // expose underlying ArcRotateCamera
-    // Preserve outdoor map limits
-    camera.lowerRadiusLimit = 4;
-    camera.upperRadiusLimit = 100;
+    // Outdoor wants a wider zoom range than the GrudgeCamera default
+    camera.lowerRadiusLimit = 5;
+    camera.upperRadiusLimit = 60;
     camera.alpha = 4.954;
-    camera.beta  = 1.3437;
+    camera.beta  = 1.25;
     grudgeCam.attachControls();
+    // Free DOM hud / crosshair when this scene is disposed by SceneManager
+    scene.onDisposeObservable.add(() => grudgeCam.dispose());
   } catch (e) {
     console.warn('[outdoor] GrudgeCamera init failed, using legacy camera:', e);
     camera = setupCamera(scene, character, engine);
@@ -76,8 +78,9 @@ export async function createOutdoor(engine) {
     dummyAggregate,
   );
 
-  // ── HUD ──────────────────────────────────────────────────────────────────
+  // ── HUD ───────────────────────────────────────────────────────────────────────────
   const hud = new GrudgeHUD({ raceName: 'Human', factionColor: '#c8a951', maxHealth: 100 });
+  scene.onDisposeObservable.add(() => hud.dispose());
 
   character.health = new Health("Hero", 100, dummyAggregate);
   character.health.rotationCheck = hero;
@@ -91,6 +94,7 @@ export async function createOutdoor(engine) {
     hud.flashHit();
     if (!character.health.isAlive) hud.showDeath();
   };
+  hud.setHealth(character.health.health, character.health.maxHealth);
 
   PLAYER = character;
 

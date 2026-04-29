@@ -32,10 +32,9 @@ export class Health {
             this.isAlive = false;
             this.die();
         }
-        this.healthBar.update(this.health, this.maxHealth);
-        if (this.name !== "Hero") {
-            // this.parent.scaling.y = 3.55;
-            // this.setupTimeout();
+        // Hero doesn't get a world-space healthbar (HUD handles it instead)
+        if (this.healthBar && typeof this.healthBar.update === 'function') {
+            this.healthBar.update(this.health, this.maxHealth);
         }
     }
 

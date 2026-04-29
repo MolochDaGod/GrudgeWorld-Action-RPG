@@ -21,9 +21,10 @@ export async function createInn(engine) {
   try {
     grudgeCam = new GrudgeCamera(scene, engine, character, null);
     camera = grudgeCam.camera;
-    camera.lowerRadiusLimit = 2;
-    camera.upperRadiusLimit = 40;
+    camera.lowerRadiusLimit = 3;
+    camera.upperRadiusLimit = 25;
     grudgeCam.attachControls();
+    scene.onDisposeObservable.add(() => grudgeCam.dispose());
   } catch (e) {
     console.warn("[inn] GrudgeCamera init failed, using legacy camera:", e);
     camera = setupCamera(scene, character, engine);
@@ -62,14 +63,22 @@ export async function createInn(engine) {
   character.health.rangeCheck = character;
   PLAYER = character;
 
-  // ── HUD ─────────────────────────────────────────────────────────────────
+  // ── HUD ────────────────────────────────────────────────────────────────────────────────
   const hud = new GrudgeHUD({
     raceName: "Human",
     factionColor: "#c8a951",
     maxHealth: 100,
   });
-  character.health.onChange = (cur, max) => hud.updateHealth(cur, max);
-  hud.show();
+  // Patch takeDamage to keep the HUD in sync (Health has no onChange hook)
+  const _innOrigTakeDamage = character.health.takeDamage.bind(character.health);
+  character.health.takeDamage = function (amount) {
+    _innOrigTakeDamage(amount);
+    hud.setHealth(character.health.health, character.health.maxHealth);
+    hud.flashHit();
+    if (!character.health.isAlive) hud.showDeath();
+  };
+  hud.setHealth(character.health.health, character.health.maxHealth);
+  scene.onDisposeObservable.add(() => hud.dispose());
 
   setupEnvironment(scene);
   setupPostProcessing(scene, camera);

@@ -28,16 +28,16 @@ const SHOULDER = Object.freeze({ LEFT: -1, RIGHT: 1 });
 const CFG = {
   // TPS normal follow
   tps: {
-    radius:         8,
-    heightOffset:   1.6,
+    radius:         12,
+    heightOffset:   2.0,
     shoulderOffset: 1.0,
     alpha:          -Math.PI / 2,
     beta:           Math.PI / 3,
   },
   // TPS aim-in (YAZH Camera.aimAnimation equivalent)
   aim: {
-    radius:         4,
-    heightOffset:   1.5,
+    radius:         6,
+    heightOffset:   1.8,
     shoulderOffset: 0.55,
   },
   // FPS - camera locked to head bone
@@ -91,26 +91,36 @@ export class GrudgeCamera {
   // ── Camera construction ────────────────────────────────────────────────────
 
   _buildCamera() {
+    // Initialize target at the character so the first frame doesn't snap from origin
+    const initialTarget = this._character
+      ? this._character.position.clone()
+      : BABYLON.Vector3.Zero();
+
     const cam = new BABYLON.ArcRotateCamera(
       'grudgeCamera',
       CFG.tps.alpha,
       CFG.tps.beta,
       CFG.tps.radius,
-      BABYLON.Vector3.Zero(),
+      initialTarget,
       this._scene
     );
 
-    cam.lowerRadiusLimit    = 1;
+    cam.lowerRadiusLimit    = 3;
     cam.upperRadiusLimit    = 30;
-    cam.upperBetaLimit      = Math.PI / 2;
-    cam.lowerBetaLimit      = 0.05;
+    cam.upperBetaLimit      = (Math.PI / 2) * 0.95;  // stop just shy of horizon to avoid pole flips
+    cam.lowerBetaLimit      = 0.35;                  // keep camera from going straight overhead
     cam.wheelDeltaPercentage = 0.02;
     cam.panningSensibility  = 0;
     cam.allowUpsideDown     = false;
     cam.collisionRadius     = new BABYLON.Vector3(0.4, 0.4, 0.4);
 
-    // Don't attach default pointer controls — we handle them
+    // Attach default pointer controls — but free the LMB so it can be used
+    // for combat (combo attacks bind to renderCanvas.click). Only middle
+    // (1) and right (2) buttons rotate the camera.
     cam.attachControl(this._engine.getRenderingCanvas(), false);
+    if (cam.inputs && cam.inputs.attached && cam.inputs.attached.pointers) {
+      cam.inputs.attached.pointers.buttons = [1, 2];
+    }
 
     return cam;
   }
@@ -213,20 +223,26 @@ export class GrudgeCamera {
   attachControls() {
     const canvas = this._engine.getRenderingCanvas();
 
-    // V → shoulder swap
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'v' || e.key === 'V') this.changeShoulder();
-      if (e.key === 'c' || e.key === 'C') this.toggleFPS();
-    });
+    // X → shoulder swap (V is reserved for jump in movement.js)
+    // C → FPS toggle
+    this._onKeyDown = (e) => {
+      const k = e.key;
+      if (k === 'x' || k === 'X') this.changeShoulder();
+      if (k === 'c' || k === 'C') this.toggleFPS();
+    };
+    window.addEventListener('keydown', this._onKeyDown);
 
     // Right mouse button → aim
-    canvas.addEventListener('mousedown', (e) => {
+    this._onMouseDown = (e) => {
       if (e.button === 2) { e.preventDefault(); this.setAiming(true); }
-    });
-    canvas.addEventListener('mouseup', (e) => {
+    };
+    this._onMouseUp = (e) => {
       if (e.button === 2) this.setAiming(false);
-    });
-    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    };
+    this._onContextMenu = (e) => e.preventDefault();
+    canvas.addEventListener('mousedown', this._onMouseDown);
+    canvas.addEventListener('mouseup', this._onMouseUp);
+    canvas.addEventListener('contextmenu', this._onContextMenu);
   }
 
   /** Call in scene.onBeforeRenderObservable */
@@ -236,7 +252,8 @@ export class GrudgeCamera {
       return;
     }
 
-    const dt = deltaMs / 1000;
+    // Clamp delta to avoid huge spring arm jumps after a pause / tab-switch
+    const dt = Math.min(Math.max(deltaMs, 0), 100) / 1000;
 
     // Target values
     const tgtRadius   = this._isAiming ? CFG.aim.radius        : CFG.tps.radius;
@@ -244,11 +261,21 @@ export class GrudgeCamera {
     const tgtShoulder = (this._isAiming ? CFG.aim.shoulderOffset : CFG.tps.shoulderOffset)
                         * this._shoulder;
 
-    // Spring-arm interpolation (YAZH smooth camera concept)
-    const spd = CFG.springSpeed * dt;
-    this._curRadius   += (tgtRadius   - this._curRadius)   * spd;
+    // Spring-arm interpolation for height/shoulder/aim transitions only.
+    // Radius is left to the user's wheel-zoom in TPS mode and is only
+    // animated when aim mode toggles (so RMB still produces a smooth
+    // zoom-in without permanently overriding the player's chosen radius).
+    const spd = Math.min(1, CFG.springSpeed * dt);
     this._curHeight   += (tgtHeight   - this._curHeight)   * spd;
     this._curShoulder += (tgtShoulder - this._curShoulder) * spd;
+    if (this._isAiming || this._wasAiming) {
+      this._curRadius += (tgtRadius - this._curRadius) * spd;
+      this._camera.radius = this._curRadius;
+    } else {
+      // Track user-controlled radius so aim transitions feel correct
+      this._curRadius = this._camera.radius;
+    }
+    this._wasAiming = this._isAiming;
 
     // Bob
     let bobY = 0;
@@ -261,18 +288,21 @@ export class GrudgeCamera {
 
     // Update camera target (character position + height offset)
     const pos = this._character.position;
-    this._camera.target = new BABYLON.Vector3(
+    const baseTarget = new BABYLON.Vector3(
       pos.x,
       pos.y + this._curHeight + bobY,
       pos.z
     );
 
     // Shoulder offset: push aim target left/right orthogonal to camera heading
-    const camDir = this._camera.target.subtract(this._camera.position).normalize();
-    const right  = BABYLON.Vector3.Cross(camDir, BABYLON.Vector3.Up()).normalize();
-    this._camera.target.addInPlace(right.scale(this._curShoulder));
-
-    this._camera.radius = this._curRadius;
+    const camPos = this._camera.position;
+    const camDir = baseTarget.subtract(camPos);
+    if (camDir.lengthSquared() > 1e-6) {
+      camDir.normalize();
+      const right = BABYLON.Vector3.Cross(camDir, BABYLON.Vector3.Up()).normalize();
+      baseTarget.addInPlace(right.scale(this._curShoulder));
+    }
+    this._camera.target = baseTarget;
   }
 
   _updateFPS() {
@@ -362,14 +392,23 @@ export class GrudgeCamera {
   _updateModeLabel() {
     const mode    = this._isFPS ? 'FPS' : this._isAiming ? 'AIM' : 'TPS';
     const shoulder = this._isFPS ? '' : this._shoulder === SHOULDER.RIGHT ? ' ►' : ' ◄';
-    this._modeLabel.textContent = `${mode}${shoulder}  [C] view  [V] shoulder  [RMB] aim`;
+    this._modeLabel.textContent = `${mode}${shoulder}  [C] view  [X] shoulder  [RMB] aim`;
   }
 
   // ── Cleanup ────────────────────────────────────────────────────────────────
 
   dispose() {
-    this._crosshair.remove();
-    this._modeLabel.remove();
-    this._camera.dispose();
+    if (this._crosshair && this._crosshair.parentNode) this._crosshair.remove();
+    if (this._modeLabel && this._modeLabel.parentNode) this._modeLabel.remove();
+    if (this._onKeyDown) window.removeEventListener('keydown', this._onKeyDown);
+    const canvas = this._engine && this._engine.getRenderingCanvas
+      ? this._engine.getRenderingCanvas()
+      : null;
+    if (canvas) {
+      if (this._onMouseDown)   canvas.removeEventListener('mousedown', this._onMouseDown);
+      if (this._onMouseUp)     canvas.removeEventListener('mouseup', this._onMouseUp);
+      if (this._onContextMenu) canvas.removeEventListener('contextmenu', this._onContextMenu);
+    }
+    if (this._camera && !this._camera.isDisposed()) this._camera.dispose();
   }
 }
