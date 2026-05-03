@@ -53,12 +53,25 @@ export async function createOutdoor(engine) {
     "characters/weapons/Sword2.glb",
     "util/HPBar.glb",
   ];
-  const heroModelPromise = loadHeroModel(scene, character);
-  const [heroModel, models] = await Promise.all([
-    heroModelPromise,
-    loadModels(scene, modelUrls),
-  ]);
-  const { hero, skeleton } = heroModel;
+
+  // ── Load race character from CHAR_SELECT (set by character_create scene) ────
+  const selectedRace = (typeof CHAR_SELECT !== 'undefined' && CHAR_SELECT.race) || 'human';
+  let hero, skeleton, raceChar;
+  const models = await loadModels(scene, modelUrls);
+
+  try {
+    raceChar = await loadRaceCharacter(scene, selectedRace, character, {
+      preset: (typeof CHAR_SELECT !== 'undefined' && CHAR_SELECT.equip) ? undefined : undefined,
+    });
+    hero = raceChar.root;
+    skeleton = raceChar.skeleton;
+    console.log(`[outdoor] Race character loaded: ${selectedRace}`);
+  } catch (err) {
+    console.warn('[outdoor] Race load failed, falling back to human_basemesh:', err.message);
+    const heroModel = await loadHeroModel(scene, character);
+    hero = heroModel.hero;
+    skeleton = heroModel.skeleton;
+  }
 
   // Now that hero is loaded pass it to GrudgeCamera
   if (grudgeCam) {
@@ -98,24 +111,7 @@ export async function createOutdoor(engine) {
 
   PLAYER = character;
 
-  // ── Race character overlay ──────────────────────────────────────────────────
-  // If URL param ?race=orc (etc.) is provided, load that race's model
-  // visible alongside the scene for quick visual testing.
-  const urlParams = new URLSearchParams(window.location.search);
-  const raceParam = urlParams.get("race");
-  if (raceParam) {
-    try {
-      const raceChar = await loadRaceCharacter(scene, raceParam, character);
-      // Hide the original human mesh so only the race model is visible
-      hero.setEnabled(false);
-      console.log(`[outdoor] Race character loaded: ${raceParam}`);
-    } catch (err) {
-      console.warn(
-        "[outdoor] Race character failed, using default hero:",
-        err.message,
-      );
-    }
-  }
+  // Race character is now loaded above via CHAR_SELECT — no overlay needed
 
   // Todo: add shadow and post toggles in settings
   // Defer non-critical operations
