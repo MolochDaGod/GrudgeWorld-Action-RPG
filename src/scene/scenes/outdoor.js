@@ -14,6 +14,11 @@ import { setupEnemies } from '../../character/enemy.js';
 import { Health } from '../../character/health.js';
 import addSword from '../../character/equips/held.js';
 
+// Null animation stub — prevents crashes when an anim key is missing
+function _nullAnim() {
+  return { start(){}, stop(){}, play(){}, isPlaying: false, from: 0, to: 0, setWeightForAllAnimatables(){} };
+}
+
 export async function createOutdoor(engine) {
   const scene = new BABYLON.Scene(engine);
 
@@ -57,14 +62,14 @@ export async function createOutdoor(engine) {
   // ── Load race character from CHAR_SELECT (set by character_create scene) ────
   const selectedRace = (typeof CHAR_SELECT !== 'undefined' && CHAR_SELECT.race) || 'human';
   let hero, skeleton, raceChar;
+  let useRaceChar = false;
   const models = await loadModels(scene, modelUrls);
 
   try {
-    raceChar = await loadRaceCharacter(scene, selectedRace, character, {
-      preset: (typeof CHAR_SELECT !== 'undefined' && CHAR_SELECT.equip) ? undefined : undefined,
-    });
+    raceChar = await loadRaceCharacter(scene, selectedRace, character);
     hero = raceChar.root;
     skeleton = raceChar.skeleton;
+    useRaceChar = true;
     console.log(`[outdoor] Race character loaded: ${selectedRace}`);
   } catch (err) {
     console.warn('[outdoor] Race load failed, falling back to human_basemesh:', err.message);
@@ -80,7 +85,34 @@ export async function createOutdoor(engine) {
       grudgeCam.update(scene.getEngine().getDeltaTime()));
   }
 
-  let anim = setupAnim(scene, skeleton);
+  // ── Animation bridge ────────────────────────────────────────────────────────
+  // Race characters use retargeted FBX anims (raceChar._animActions).
+  // The old GLB has baked Mixamo AnimationGroups (BreathingIdle, etc.).
+  // movement.js expects: anim.BreathingIdle, anim.Running, anim.Jump, anim.Roll,
+  //   anim.SelfCast, anim.Combo, anim.Attack
+  let anim;
+  if (useRaceChar && raceChar._animActions) {
+    // Bridge race character anims → movement.js expected names
+    const ra = raceChar._animActions;
+    anim = {
+      BreathingIdle: ra.idle       || ra.combatIdle || _nullAnim(),
+      Running:       ra.combatRun  || _nullAnim(),
+      Jump:          ra.idle       || _nullAnim(),  // use idle as placeholder until jump FBX added
+      Roll:          ra.combatRun  || _nullAnim(),  // roll anim placeholder
+      SelfCast:      ra.attack3    || _nullAnim(),
+      Combo:         ra.attack2    || _nullAnim(),
+      Attack:        ra.attack1    || _nullAnim(),
+    };
+    // Enable blending for race anims
+    scene.animationPropertiesOverride = new BABYLON.AnimationPropertiesOverride();
+    scene.animationPropertiesOverride.enableBlending = true;
+    scene.animationPropertiesOverride.blendingSpeed = 0.15;
+    console.log('[outdoor] Animation bridge: race FBX anims mapped to movement system');
+  } else {
+    // Fallback: old GLB with baked Mixamo anims
+    anim = setupAnim(scene, skeleton);
+  }
+
   setupInputHandling(
     scene,
     character,
