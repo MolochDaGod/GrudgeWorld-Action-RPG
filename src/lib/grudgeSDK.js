@@ -78,7 +78,7 @@ export const GrudgeSDK = {
     return _cachedFetch('armor', `${OBJECTSTORE_API}/armor.json`);
   },
 
-  // ── Master data (920+ items, 220 recipes, 254 materials, artifacts) ────────
+  // ── Master data (920+ items, 220 recipes, 254 materials, artifacts) ────────────
 
   /** Fetch all tier-expanded items with GRUDGE UUIDs */
   async fetchMasterItems() {
@@ -109,19 +109,17 @@ export const GrudgeSDK = {
   async fetchMasterAttributes() {
     return _cachedFetch('masterAttributes', `${OBJECTSTORE_API}/master-attributes.json`);
   },
-
   /** Worker API — weapon skills for a weapon type */
   async fetchWeaponSkills(weaponType) {
     return _cachedFetch(`ws_${weaponType}`, `${WORKER_API}/v1/weapon-skills/${weaponType}`);
   },
 
-  // ── Info hub data (alternate endpoint, same data) ─────────────────────────
+  // ── Info hub data (alternate endpoint, same data) ─────────────────────
 
   /** Fetch from info hub data endpoint */
   async fetchInfoData(file) {
     return _cachedFetch(`info_${file}`, `${INFO_HUB}/data/${file}`);
   },
-
   /** Build CDN asset URL */
   assetUrl(path) {
     return `${ASSETS_CDN}${path.startsWith('/') ? path : '/' + path}`;
@@ -137,7 +135,6 @@ export const GrudgeSDK = {
 
   /** Info hub URL (info.grudge-studio.com) */
   infoUrl(path = '') { return `${INFO_HUB}${path}`; },
-
   /** Prefetch core data (call on app init) */
   async prefetch() {
     const [races, classes, attrs, factions] = await Promise.allSettled([

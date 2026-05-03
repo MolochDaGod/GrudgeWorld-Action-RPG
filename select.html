@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+  <title>Grudge Warlords – Character Selection</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Fira+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --gold: #c8a951;
+      --gold-glow: #f0d070;
+      --gold-dim: rgba(200,169,81,0.45);
+      --dark: #080a12;
+      --dark-panel: rgba(8,10,18,0.92);
+      --dark-card: rgba(16,18,30,0.85);
+      --border: rgba(200,169,81,0.18);
+      --text: #b8b8c0;
+      --text-dim: #666;
+      --red: #c0392b;
+      --green: #27ae60;
+      --blue: #4a90d9;
+      --purple: #8e44ad;
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    html, body {
+      width:100%; height:100%;
+      overflow:hidden;
+      background: var(--dark);
+      color: var(--text);
+      font-family: 'Fira Sans', 'Helvetica Neue', sans-serif;
+    }
+
+    /* ── Layout ─────────────────────────────────── */
+    #app {
+      display:flex; width:100%; height:100%;
+    }
+    #viewport {
+      flex:1; position:relative; min-width:0;
+    }
+    #viewport canvas {
+      width:100%; height:100%; display:block;
+    }
+    #panel {
+      width:380px; height:100%; overflow-y:auto;
+      background: var(--dark-panel);
+      border-left: 1px solid var(--border);
+      scrollbar-width:thin;
+      scrollbar-color: var(--gold) #111;
+      padding: 0 0 40px 0;
+      flex-shrink:0;
+    }
+    #panel::-webkit-scrollbar { width:5px; }
+    #panel::-webkit-scrollbar-thumb { background:var(--gold); border-radius:3px; }
+    #panel::-webkit-scrollbar-track { background:#111; }
+
+    /* ── Header ─────────────────────────────────── */
+    .header {
+      text-align:center; padding:28px 16px 6px;
+      background: linear-gradient(180deg, rgba(200,169,81,0.08) 0%, transparent 100%);
+    }
+    .header h1 {
+      font-family:'Cinzel',serif; font-weight:900;
+      font-size:22px; letter-spacing:6px;
+      color:var(--gold);
+      text-shadow: 0 0 20px rgba(200,169,81,0.3);
+    }
+    .header .sub {
+      font-size:10px; letter-spacing:4px; color:var(--text-dim);
+      margin-top:4px; font-weight:300;
+    }
+
+    /* ── Section ────────────────────────────────── */
+    .section-label {
+      font-family:'Cinzel',serif; font-size:10px; font-weight:700;
+      letter-spacing:3px; color:var(--gold);
+      padding:14px 16px 6px;
+      border-top:1px solid rgba(200,169,81,0.08);
+    }
+
+    /* ── Faction Tabs ──────────────────────────── */
+    .faction-tabs {
+      display:flex; gap:2px; padding:0 16px;
+    }
+    .faction-tab {
+      flex:1; padding:6px 0; text-align:center;
+      font-family:'Cinzel',serif; font-size:9px; font-weight:700;
+      letter-spacing:2px; cursor:pointer;
+      border:1px solid transparent; border-radius:4px;
+      background:transparent; color:var(--text-dim);
+      transition:all 0.25s;
+    }
+    .faction-tab:hover { border-color:var(--gold-dim); color:var(--gold); }
+    .faction-tab.active {
+      color:var(--gold); background:rgba(200,169,81,0.12);
+      border-color:var(--gold-dim);
+    }
+
+    /* ── Race Grid ──────────────────────────────── */
+    .race-grid {
+      display:grid; grid-template-columns:1fr 1fr; gap:6px;
+      padding:8px 16px;
+    }
+    .race-card {
+      position:relative; padding:10px 8px 8px; text-align:center;
+      background:var(--dark-card); border:1px solid rgba(255,255,255,0.04);
+      border-radius:6px; cursor:pointer; transition:all 0.25s;
+      overflow:hidden;
+    }
+    .race-card::before {
+      content:''; position:absolute; top:0; left:0; right:0; height:2px;
+      background:var(--race-color,transparent); opacity:0.5; transition:opacity 0.25s;
+    }
+    .race-card:hover { border-color:var(--gold-dim); transform:translateY(-1px); }
+    .race-card:hover::before { opacity:1; }
+    .race-card.active {
+      border-color:var(--gold);
+      background:rgba(200,169,81,0.08);
+      box-shadow:0 0 16px rgba(200,169,81,0.08);
+    }
+    .race-card.active::before { opacity:1; height:3px; }
+    .race-card .race-name {
+      font-family:'Cinzel',serif; font-size:11px; font-weight:700;
+      color:#ddd; letter-spacing:1px;
+    }
+    .race-card .race-faction {
+      font-size:8px; color:var(--text-dim); letter-spacing:1px; margin-top:2px;
+    }
+
+    /* ── Race Info ──────────────────────────────── */
+    .race-info {
+      padding:8px 16px;
+    }
+    .race-desc {
+      font-size:11px; line-height:1.6; color:#999;
+      font-style:italic; padding:4px 0;
+    }
+
+    /* ── Class Grid ─────────────────────────────── */
+    .class-grid {
+      display:grid; grid-template-columns:1fr 1fr; gap:6px;
+      padding:8px 16px;
+    }
+    .class-card {
+      padding:10px 8px; text-align:center;
+      background:var(--dark-card); border:1px solid rgba(255,255,255,0.04);
+      border-radius:6px; cursor:pointer; transition:all 0.25s;
+    }
+    .class-card:hover { border-color:var(--gold-dim); }
+    .class-card.active {
+      border-color:var(--gold); background:rgba(200,169,81,0.08);
+    }
+    .class-card .class-icon { font-size:18px; }
+    .class-card .class-name {
+      font-family:'Cinzel',serif; font-size:10px; font-weight:700;
+      color:#ddd; letter-spacing:1px; margin-top:4px;
+    }
+    .class-card .class-role {
+      font-size:8px; color:var(--text-dim); margin-top:2px;
+    }
+
+    /* ── Stats ──────────────────────────────────── */
+    .stat-row {
+      display:flex; align-items:center; padding:3px 16px; gap:8px;
+    }
+    .stat-label {
+      width:34px; font-size:9px; font-weight:600;
+      letter-spacing:1px; color:#888;
+    }
+    .stat-track {
+      flex:1; height:6px; background:#1a1a2e;
+      border-radius:3px; overflow:hidden;
+    }
+    .stat-fill {
+      height:100%; border-radius:3px;
+      background:linear-gradient(90deg,var(--gold),var(--gold-glow));
+      transition:width 0.4s cubic-bezier(0.4,0,0.2,1);
+    }
+    .stat-val {
+      width:22px; text-align:right; font-size:9px;
+      color:var(--gold-glow); font-weight:600;
+    }
+
+    /* ── Equipment ─────────────────────────────── */
+    .equip-group-label {
+      font-size:9px; font-weight:600; letter-spacing:2px;
+      color:#555; padding:8px 16px 4px;
+      text-transform:uppercase;
+    }
+    .equip-row {
+      display:flex; align-items:center; padding:3px 16px; gap:6px;
+    }
+    .equip-slot-label {
+      width:80px; font-size:10px; color:#888; flex-shrink:0;
+    }
+    .equip-variants {
+      display:flex; gap:3px; flex-wrap:wrap; flex:1;
+    }
+    .equip-btn {
+      min-width:26px; height:22px; padding:0 6px;
+      font-size:9px; font-family:'Fira Sans',sans-serif; font-weight:600;
+      background:transparent; color:var(--gold);
+      border:1px solid rgba(200,169,81,0.2); border-radius:3px;
+      cursor:pointer; transition:all 0.15s;
+    }
+    .equip-btn:hover { border-color:var(--gold); background:rgba(200,169,81,0.08); }
+    .equip-btn.active {
+      background:rgba(200,169,81,0.25); border-color:var(--gold);
+    }
+    .equip-btn:disabled {
+      color:#333; border-color:#1a1a1a; cursor:default;
+    }
+    .equip-btn.locked {
+      color:#444; border-color:#222; cursor:not-allowed; opacity:0.5;
+    }
+
+    /* ── Animations ─────────────────────────────── */
+    .anim-grid {
+      display:flex; flex-wrap:wrap; gap:4px; padding:6px 16px;
+    }
+    .anim-btn {
+      padding:5px 10px; font-size:9px;
+      font-family:'Fira Sans',sans-serif; font-weight:400;
+      background:transparent; color:var(--gold);
+      border:1px solid rgba(200,169,81,0.15); border-radius:3px;
+      cursor:pointer; transition:all 0.15s;
+    }
+    .anim-btn:hover { border-color:var(--gold); background:rgba(200,169,81,0.08); }
+    .anim-btn.playing { background:rgba(200,169,81,0.2); border-color:var(--gold); }
+
+    /* ── Enter World Button ────────────────────── */
+    .enter-world-wrap {
+      padding:20px 16px 0;
+    }
+    .enter-world-btn {
+      width:100%; padding:14px; font-family:'Cinzel',serif;
+      font-size:14px; font-weight:700; letter-spacing:4px;
+      background:linear-gradient(135deg,rgba(200,169,81,0.2),rgba(200,169,81,0.05));
+      color:var(--gold); border:1px solid var(--gold-dim);
+      border-radius:8px; cursor:pointer;
+      transition:all 0.3s;
+      text-shadow:0 0 10px rgba(200,169,81,0.3);
+    }
+    .enter-world-btn:hover {
+      background:linear-gradient(135deg,rgba(200,169,81,0.35),rgba(200,169,81,0.12));
+      border-color:var(--gold);
+      box-shadow:0 0 24px rgba(200,169,81,0.15);
+      transform:translateY(-1px);
+    }
+
+    /* ── Renderer Badge ────────────────────────── */
+    #renderer-badge {
+      position:absolute; top:10px; left:10px;
+      padding:3px 8px; font-size:9px; letter-spacing:1px;
+      background:rgba(0,0,0,0.6); color:var(--gold-dim);
+      border:1px solid var(--border); border-radius:4px;
+      pointer-events:none; z-index:10;
+    }
+
+    /* ── Loading Overlay ───────────────────────── */
+    #loading-overlay {
+      position:fixed; inset:0; z-index:999;
+      background:var(--dark);
+      display:flex; flex-direction:column;
+      align-items:center; justify-content:center;
+      transition:opacity 0.6s;
+    }
+    #loading-overlay.hidden { opacity:0; pointer-events:none; }
+    #loading-overlay h2 {
+      font-family:'Cinzel',serif; color:var(--gold);
+      font-size:18px; letter-spacing:6px; margin-bottom:20px;
+    }
+    .loader-bar {
+      width:200px; height:3px; background:#1a1a2e; border-radius:2px; overflow:hidden;
+    }
+    .loader-fill {
+      width:0%; height:100%;
+      background:linear-gradient(90deg,var(--gold),var(--gold-glow));
+      border-radius:2px; transition:width 0.3s;
+    }
+    #loading-status {
+      margin-top:12px; font-size:10px; color:var(--text-dim);
+      letter-spacing:1px;
+    }
+
+    /* ── Responsive ────────────────────────────── */
+    @media (max-width:800px) {
+      #app { flex-direction:column; }
+      #viewport { height:45vh; }
+      #panel { width:100%; height:55vh; border-left:none; border-top:1px solid var(--border); }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Loading Overlay -->
+  <div id="loading-overlay">
+    <h2>GRUDGE WARLORDS</h2>
+    <div class="loader-bar"><div class="loader-fill" id="loader-fill"></div></div>
+    <div id="loading-status">Initializing renderer…</div>
+  </div>
+
+  <div id="app">
+    <!-- 3D Viewport -->
+    <div id="viewport">
+      <canvas id="three-canvas"></canvas>
+      <div id="renderer-badge">WebGL</div>
+    </div>
+
+    <!-- Selection Panel -->
+    <div id="panel">
+      <div class="header">
+        <h1>GRUDGE WARLORDS</h1>
+        <div class="sub">CHARACTER SELECTION</div>
+      </div>
+
+      <!-- Faction Tabs -->
+      <div class="section-label">FACTION</div>
+      <div class="faction-tabs" id="faction-tabs"></div>
+
+      <!-- Race Grid -->
+      <div class="section-label">RACE</div>
+      <div class="race-grid" id="race-grid"></div>
+      <div class="race-info" id="race-info">
+        <div class="race-desc" id="race-desc"></div>
+      </div>
+
+      <!-- Class -->
+      <div class="section-label">CLASS</div>
+      <div class="class-grid" id="class-grid"></div>
+
+      <!-- Stats -->
+      <div class="section-label">BASE ATTRIBUTES</div>
+      <div id="stats-container"></div>
+
+      <!-- Equipment -->
+      <div class="section-label">EQUIPMENT</div>
+      <div id="equip-container"></div>
+
+      <!-- Animations -->
+      <div class="section-label">ANIMATIONS</div>
+      <div class="anim-grid" id="anim-grid"></div>
+
+      <!-- Enter World -->
+      <div class="enter-world-wrap">
+        <button class="enter-world-btn" id="enter-world-btn">ENTER WORLD</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.167.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.167.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module" src="./src/select/main.js"></script>
+</body>
+</html>
