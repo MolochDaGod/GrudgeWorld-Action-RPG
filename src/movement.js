@@ -281,9 +281,12 @@ function onKeyDown(event) {
   if (event.key === "2") {
     if (PLAYER.health) SPELLS.tripleOrb.castAOE(PLAYER.health);
   }
-  // 4 — combo trigger
+  // 4 — Spell cast at target (face + fire)
   if (event.key === "4") {
-    DoCombo();
+    if (PLAYER.target && PLAYER.target.health && PLAYER.health) {
+      rotateToTarget();
+      SPELLS.fireball.cast(PLAYER.health, PLAYER.target.health);
+    }
   }
   // 5 — heavy swing (requires target)
   if (event.key === "5") {
@@ -612,8 +615,17 @@ function handleCharacterMovement(
 
   let combo1length = anim.Combo.from + 60;
   let combo2length = anim.Combo.from + 110;
-  // combo
-  if (inputMap["4"] || (mouseIsActive && !thirdAttack)) {
+  // Key 4 = spell cast anim (SelfCast) — spell logic is in onKeyDown
+  if (inputMap["4"]) {
+    anim.BreathingIdle.stop();
+    anim.Running.stop();
+    if (!anim.Roll.isPlaying && !anim.Running.isPlaying) {
+      anim.SelfCast.start(false, 1.0, anim.SelfCast.from, anim.SelfCast.to, true);
+    }
+  }
+
+  // LMB combo (mouse only — no key 4)
+  if (mouseIsActive && !thirdAttack) {
     anim.BreathingIdle.stop();
     anim.Running.stop();
     if (!anim.Roll.isPlaying && !anim.Running.isPlaying) {
@@ -622,19 +634,9 @@ function handleCharacterMovement(
           if (key !== "Combo") anim[key].stop();
         }
       }
-
-      if (combo === 1) {
-        // anim.Combo.start(false, 1.8, combo1length -5, combo2length, true);
-        combo += 1;
-      }
-      if (combo === 2) {
-        anim.Combo.start(false, 1.6, combo2length, anim.Combo.to - 65, true);
-      }
-      if (combo === 3) {
-        anim.Combo.start(false, 1.6, anim.Combo.from + 25, combo1length, true);
-
-        combo = 0;
-      }
+      if (combo === 1) { combo += 1; }
+      if (combo === 2) { anim.Combo.start(false, 1.6, combo2length, anim.Combo.to - 65, true); }
+      if (combo === 3) { anim.Combo.start(false, 1.6, anim.Combo.from + 25, combo1length, true); combo = 0; }
     }
   }
 
