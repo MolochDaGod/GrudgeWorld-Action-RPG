@@ -2,6 +2,8 @@ import { loadPlayerCharacter } from '../../character/PlayerCharacter.js';
 import { setupCamera } from '../../utils/camera.js';
 import { GrudgeCamera } from '../../utils/GrudgeCamera.js';
 import { GrudgeHUD } from '../../utils/HUD.js';
+import { TargetFrame } from '../../ui/TargetFrame.js';
+import { SettingsPanel } from '../../ui/SettingsPanel.js';
 import { setupPhysics } from '../../utils/physics.js';
 import { setupInputHandling } from '../../movement.js';
 import { setupWater } from '../../utils/water.js';
@@ -86,6 +88,13 @@ export async function createOutdoor(engine) {
 
   PLAYER = character;
 
+  // ── Target Frame (shows Tab-selected enemy) ─────────────────────────────────
+  const targetFrame = new TargetFrame(scene);
+  scene.onDisposeObservable.add(() => targetFrame.dispose());
+
+  // ── Settings Panel (Escape key) ─────────────────────────────────────────
+  const settings = new SettingsPanel();
+  scene.onDisposeObservable.add(() => settings.dispose());
 
   // Todo: add shadow and post toggles in settings
   // Defer non-critical operations
