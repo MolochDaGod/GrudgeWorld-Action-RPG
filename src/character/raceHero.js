@@ -55,12 +55,20 @@ export async function loadRaceCharacter(scene, raceId, parent, options = {}) {
   root.position.y = -1.1;
   root.rotation.y = Math.PI; // face forward
 
-  // Disable camera collision on all submeshes
+  // Fix materials and disable camera collision on all submeshes
+  const _fallbackMat = new BABYLON.PBRMaterial(`${raceId}_fallback`, scene);
+  _fallbackMat.albedoColor = new BABYLON.Color3(0.45, 0.35, 0.28);
+  _fallbackMat.metallic = 0.1;
+  _fallbackMat.roughness = 0.85;
+
   for (const m of result.meshes) {
     m.cameraCollide = false;
     if (m.material) {
       try { m.material.transparencyMode = BABYLON.Material.MATERIAL_OPAQUE; }
       catch (_) { /* ignore */ }
+    } else if (m.getTotalVertices && m.getTotalVertices() > 0) {
+      // Mesh has geometry but no material — assign fallback
+      m.material = _fallbackMat;
     }
   }
 
@@ -85,6 +93,16 @@ export async function loadRaceCharacter(scene, raceId, parent, options = {}) {
   // Apply default starter preset or caller-supplied preset
   const starterPreset = preset || _defaultPreset(raceId);
   equipManager.applyPreset(starterPreset);
+
+  // ── 3b. Ensure ONLY equipped meshes are visible (catch-all) ────────────────
+  // Some FBX child meshes aren't caught by slot patterns (bone helpers, extra geo).
+  // Hide anything the EquipmentManager didn't catalog, except root transform.
+  for (const m of result.meshes) {
+    if (m === root) continue;  // root transform node stays
+    if (!equipManager._catalogedMeshes?.has(m)) {
+      m.isVisible = false;
+    }
+  }
 
   // ── 4. Animation system ────────────────────────────────────────────────────
   const mixer = new BABYLON.AnimationGroup('empty', scene);

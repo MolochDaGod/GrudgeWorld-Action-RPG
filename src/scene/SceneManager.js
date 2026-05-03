@@ -12,19 +12,19 @@
  *   F1 → outdoor | F2 → inn | F3 → builder | F4 → character_test
  */
 
-import { createOutdoor }       from './scenes/outdoor.js';
-import { createInn }           from './scenes/inn.js';
-import { createBuilder }       from './scenes/builder.js';
-import { createCharacterTest } from './scenes/character_test.js';
-import { buildHotbar }         from '../utils/Hotbar.js';
+import { createOutdoor }          from './scenes/outdoor.js';
+import { createInn }              from './scenes/inn.js';
+import { createBuilder }          from './scenes/builder.js';
+import { createCharacterCreate }  from './scenes/character_create.js';
+import { buildHotbar }            from '../utils/Hotbar.js';
 
 // ─── Scene catalog ────────────────────────────────────────────────────────────
 
 const SCENE_CATALOG = [
-  { key: 'outdoor',        label: '🌲 Outdoor',    fn: createOutdoor,       hotkey: 'F1' },
-  { key: 'inn',            label: '🏠 Inn',         fn: createInn,           hotkey: 'F2' },
-  { key: 'builder',        label: '🔨 Builder',     fn: createBuilder,       hotkey: 'F3' },
-  { key: 'character_test', label: '⚔️ Characters',  fn: createCharacterTest, hotkey: 'F4' },
+  { key: 'outdoor',          label: '🌲 Outdoor',    fn: createOutdoor,         hotkey: 'F1' },
+  { key: 'inn',              label: '🏠 Inn',         fn: createInn,             hotkey: 'F2' },
+  { key: 'builder',          label: '🔨 Builder',     fn: createBuilder,         hotkey: 'F3' },
+  { key: 'character_create', label: '⚔️ Create',      fn: createCharacterCreate,  hotkey: 'F4' },
 ];
 
 // ─── SceneManager ─────────────────────────────────────────────────────────────
