@@ -47,6 +47,19 @@ let inputMap = {};
 
 let FAST_RELOAD = false; //Enable for fast development, disable for prod 
 
+// Character selection from select.html
+let CHAR_SELECT = (() => {
+  try {
+    const p = new URLSearchParams(window.location.search);
+    return {
+      race:  p.get('race')  || 'human',
+      class: p.get('class') || 'warrior',
+      equip: p.has('equip') ? JSON.parse(p.get('equip')) : null,
+    };
+  } catch (_) {
+    return { race: 'human', class: 'warrior', equip: null };
+  }
+})();
 
 // Graphics Settings
 let WEBGPU = false; //otherwise use WebGL
