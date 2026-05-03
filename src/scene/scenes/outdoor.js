@@ -1,11 +1,9 @@
-import { loadHeroModel } from '../../character/hero.js';
-import { loadRaceCharacter } from "../../character/raceHero.js";
+import { loadPlayerCharacter } from '../../character/PlayerCharacter.js';
 import { setupCamera } from '../../utils/camera.js';
 import { GrudgeCamera } from '../../utils/GrudgeCamera.js';
 import { GrudgeHUD } from '../../utils/HUD.js';
 import { setupPhysics } from '../../utils/physics.js';
 import { setupInputHandling } from '../../movement.js';
-import { setupAnim } from '../../utils/anim.js';
 import { setupWater } from '../../utils/water.js';
 
 import { loadModels } from '../../utils/load.js';
@@ -13,44 +11,6 @@ import { loadModels } from '../../utils/load.js';
 import { setupEnemies } from '../../character/enemy.js';
 import { Health } from '../../character/health.js';
 import addSword from '../../character/equips/held.js';
-
-// Null animation stub — prevents crashes when an anim key is missing
-function _nullAnim() {
-  return { start(){}, stop(){}, play(){}, isPlaying: false, from: 0, to: 0, setWeightForAllAnimatables(){} };
-}
-
-// Load extra weapon-pack GLB anims and hot-swap into the anim bridge
-async function _loadExtraAnims(scene, skeleton, anim) {
-  const extras = {
-    Jump:  './assets/glb/anims/sword_shield/sword_and_shield_jump.glb',
-    Roll:  './assets/glb/anims/longbow/standing_dodge_forward.glb',
-    Block: './assets/glb/anims/sword_shield/sword_and_shield_block.glb',
-  };
-  for (const [key, path] of Object.entries(extras)) {
-    try {
-      const folder = path.substring(0, path.lastIndexOf('/') + 1);
-      const file = path.substring(path.lastIndexOf('/') + 1);
-      const result = await BABYLON.SceneLoader.ImportMeshAsync(null, folder, file, scene);
-      if (result.animationGroups?.length > 0) {
-        const ag = result.animationGroups[0];
-        ag.name = key;
-        // Retarget to our skeleton
-        if (skeleton) {
-          const boneMap = {};
-          for (const bone of skeleton.bones) boneMap[bone.name] = bone;
-          for (const ta of ag.targetedAnimations) {
-            if (ta.target?.name && boneMap[ta.target.name]) ta.target = boneMap[ta.target.name];
-          }
-        }
-        for (const m of result.meshes) m.dispose();
-        anim[key] = ag;
-        console.log(`[outdoor] Extra anim loaded: ${key}`);
-      }
-    } catch (e) {
-      console.warn(`[outdoor] Extra anim ${key} failed:`, e.message);
-    }
-  }
-}
 
 export async function createOutdoor(engine) {
   const scene = new BABYLON.Scene(engine);
@@ -92,76 +52,22 @@ export async function createOutdoor(engine) {
     "util/HPBar.glb",
   ];
 
-  // ── Load race character from CHAR_SELECT (set by character_create scene) ────
-  const selectedRace = (typeof CHAR_SELECT !== 'undefined' && CHAR_SELECT.race) || 'human';
-  let hero, skeleton, raceChar;
-  let useRaceChar = false;
+  // ── Load player character (unified — reads from CHAR_SELECT) ───────────────
   const models = await loadModels(scene, modelUrls);
+  const pc = await loadPlayerCharacter(scene, character);
+  const { hero, skeleton, anim } = pc;
 
-  try {
-    raceChar = await loadRaceCharacter(scene, selectedRace, character);
-    hero = raceChar.root;
-    skeleton = raceChar.skeleton;
-    useRaceChar = true;
-    console.log(`[outdoor] Race character loaded: ${selectedRace}`);
-  } catch (err) {
-    console.warn('[outdoor] Race load failed, falling back to human_basemesh:', err.message);
-    const heroModel = await loadHeroModel(scene, character);
-    hero = heroModel.hero;
-    skeleton = heroModel.skeleton;
-  }
-
-  // Now that hero is loaded pass it to GrudgeCamera
+  // Pass hero to GrudgeCamera
   if (grudgeCam) {
     grudgeCam._hero = hero;
     scene.onBeforeRenderObservable.add(() =>
       grudgeCam.update(scene.getEngine().getDeltaTime()));
   }
 
-  // ── Animation bridge ────────────────────────────────────────────────────────
-  // Race characters use retargeted FBX anims (raceChar._animActions).
-  // The old GLB has baked Mixamo AnimationGroups (BreathingIdle, etc.).
-  // movement.js expects: anim.BreathingIdle, anim.Running, anim.Jump, anim.Roll,
-  //   anim.SelfCast, anim.Combo, anim.Attack
-  let anim;
-  if (useRaceChar && raceChar._animActions) {
-    // Bridge race character anims → movement.js expected names
-    const ra = raceChar._animActions;
-    anim = {
-      BreathingIdle: ra.idle       || ra.combatIdle || _nullAnim(),
-      Running:       ra.combatRun  || _nullAnim(),
-      Jump:          ra.idle       || _nullAnim(),
-      Roll:          ra.hit        || _nullAnim(),  // dodge/roll uses hit react until dodge GLB wired
-      SelfCast:      ra.attack3    || _nullAnim(),
-      Combo:         ra.attack2    || _nullAnim(),
-      Attack:        ra.attack1    || _nullAnim(),
-      Block:         ra.block      || _nullAnim(),  // block/parry
-    };
+  setupInputHandling(scene, character, camera, hero, anim, engine, dummyAggregate);
 
-    // Load additional anims from GLB packs asynchronously (jump, dodge, block)
-    _loadExtraAnims(scene, skeleton, anim);
-    // Enable blending for race anims
-    scene.animationPropertiesOverride = new BABYLON.AnimationPropertiesOverride();
-    scene.animationPropertiesOverride.enableBlending = true;
-    scene.animationPropertiesOverride.blendingSpeed = 0.15;
-    console.log('[outdoor] Animation bridge: race FBX anims mapped to movement system');
-  } else {
-    // Fallback: old GLB with baked Mixamo anims
-    anim = setupAnim(scene, skeleton);
-  }
-
-  setupInputHandling(
-    scene,
-    character,
-    camera,
-    hero,
-    anim,
-    engine,
-    dummyAggregate,
-  );
-
-  // ── HUD ───────────────────────────────────────────────────────────────────────────
-  const hud = new GrudgeHUD({ raceName: 'Human', factionColor: '#c8a951', maxHealth: 100 });
+  // ── HUD ─────────────────────────────────────────────────────────────────────────────
+  const hud = new GrudgeHUD({ raceName: pc.raceName, factionColor: pc.factionColor, maxHealth: 100 });
   scene.onDisposeObservable.add(() => hud.dispose());
 
   character.health = new Health("Hero", 100, dummyAggregate);
@@ -180,7 +86,6 @@ export async function createOutdoor(engine) {
 
   PLAYER = character;
 
-  // Race character is now loaded above via CHAR_SELECT — no overlay needed
 
   // Todo: add shadow and post toggles in settings
   // Defer non-critical operations

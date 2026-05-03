@@ -1,4 +1,4 @@
-import { loadHeroModel } from '../../character/hero.js';
+import { loadPlayerCharacter } from '../../character/PlayerCharacter.js';
 import { setupCamera } from '../../utils/camera.js';
 import { setupPhysics } from '../../utils/physics.js';
 import { setupInputHandling } from '../../movement.js';
@@ -35,16 +35,14 @@ export async function createBuilder(engine) {
         // load all models, make sure parallel loading for speed
         const modelUrls = [
             "env/builder/parts.glb", "env/exterior/grass/grass.glb"];
-        const heroModelPromise = loadHeroModel(scene, character);
-        const [heroModel, models] = await Promise.all([
-            heroModelPromise,
+        const [pc, models] = await Promise.all([
+            loadPlayerCharacter(scene, character),
             loadModels(scene, modelUrls)
         ]);
-        const { hero, skeleton } = heroModel;
+        const { hero, skeleton, anim } = pc;
         setupMainPlayerMenu(scene);
         createMobileControls(scene, camera, character);
 
-        let anim = setupAnim(scene, skeleton);
         setupInputHandling(scene, character, camera, hero, anim, engine, dummyAggregate);
         character.health = new Health("Hero", 100, dummyAggregate);
         character.health.rotationCheck = hero;
