@@ -30,22 +30,32 @@ export class GrudgeEquipmentManager {
   catalog(meshes) {
     this.slots = {};
     this._allMeshes = meshes;
+    this._catalogedMeshes = new Set();
 
     for (const mesh of meshes) {
       const name = mesh.name || '';
       // Strip prefix to get the base slot name
       const stripped = name.startsWith(this.prefix) ? name.slice(this.prefix.length) : name;
 
+      let matched = false;
       for (const [slotName, pattern] of Object.entries(SLOT_PATTERNS)) {
         const match = stripped.match(pattern);
         if (match) {
           if (!this.slots[slotName]) this.slots[slotName] = [];
           const variant = match[1] || 'default';
           this.slots[slotName].push({ variant, mesh });
+          this._catalogedMeshes.add(mesh);
           // Start with everything hidden
           mesh.isVisible = false;
+          matched = true;
           break;
         }
+      }
+
+      // Hide uncataloged meshes (skeleton helpers, unnamed children)
+      // Keep only the root transform node visible (index 0)
+      if (!matched && mesh !== meshes[0]) {
+        mesh.isVisible = false;
       }
     }
 
