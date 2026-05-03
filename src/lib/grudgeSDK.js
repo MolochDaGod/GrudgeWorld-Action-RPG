@@ -17,6 +17,8 @@ const OBJECTSTORE_API = 'https://molochdagod.github.io/ObjectStore/api/v1';
 const ASSETS_CDN      = 'https://assets.grudge-studio.com';
 const WORKER_API      = 'https://objectstore.grudge-studio.com';
 const GAME_API        = 'https://api.grudge-studio.com';
+const INFO_HUB        = 'https://info.grudge-studio.com';
+const CRAFTING_APP    = 'https://grudge-crafting.puter.site';
 
 // ── Cache ────────────────────────────────────────────────────────────────────
 
@@ -76,9 +78,48 @@ export const GrudgeSDK = {
     return _cachedFetch('armor', `${OBJECTSTORE_API}/armor.json`);
   },
 
+  // ── Master data (920+ items, 220 recipes, 254 materials, artifacts) ────────
+
+  /** Fetch all tier-expanded items with GRUDGE UUIDs */
+  async fetchMasterItems() {
+    return _cachedFetch('masterItems', `${OBJECTSTORE_API}/master-items.json`);
+  },
+
+  /** Fetch craft recipes with material links */
+  async fetchMasterRecipes() {
+    return _cachedFetch('masterRecipes', `${OBJECTSTORE_API}/master-recipes.json`);
+  },
+
+  /** Fetch crafting materials */
+  async fetchMasterMaterials() {
+    return _cachedFetch('masterMaterials', `${OBJECTSTORE_API}/master-materials.json`);
+  },
+
+  /** Fetch artifact catalog with discovery blocks */
+  async fetchMasterArtifacts() {
+    return _cachedFetch('masterArtifacts', `${OBJECTSTORE_API}/master-artifacts.json`);
+  },
+
+  /** Fetch combined UUID->entity index */
+  async fetchMasterRegistry() {
+    return _cachedFetch('masterRegistry', `${OBJECTSTORE_API}/master-registry.json`);
+  },
+
+  /** Fetch 8 attributes + 37 derived stats */
+  async fetchMasterAttributes() {
+    return _cachedFetch('masterAttributes', `${OBJECTSTORE_API}/master-attributes.json`);
+  },
+
   /** Worker API — weapon skills for a weapon type */
   async fetchWeaponSkills(weaponType) {
     return _cachedFetch(`ws_${weaponType}`, `${WORKER_API}/v1/weapon-skills/${weaponType}`);
+  },
+
+  // ── Info hub data (alternate endpoint, same data) ─────────────────────────
+
+  /** Fetch from info hub data endpoint */
+  async fetchInfoData(file) {
+    return _cachedFetch(`info_${file}`, `${INFO_HUB}/data/${file}`);
   },
 
   /** Build CDN asset URL */
@@ -90,6 +131,12 @@ export const GrudgeSDK = {
   apiUrl(path) {
     return `${GAME_API}${path.startsWith('/') ? path : '/' + path}`;
   },
+
+  /** Crafting app URL (grudge-crafting.puter.site) */
+  craftingUrl() { return CRAFTING_APP; },
+
+  /** Info hub URL (info.grudge-studio.com) */
+  infoUrl(path = '') { return `${INFO_HUB}${path}`; },
 
   /** Prefetch core data (call on app init) */
   async prefetch() {
