@@ -11,12 +11,10 @@
  *   2. Any scene calls loadPlayerCharacter(scene, parentNode)
  *   3. Returns { hero, skeleton, raceChar, anim } ready for movement.js
  *
- * The old HumanBaseMesh_WithEquips.glb is only used as a last-resort
- * fallback if the race GLB fails to load.
+ * Race GLB characters are the ONLY option. The old HumanBaseMesh is gone.
  */
 
 import { loadRaceCharacter } from './raceHero.js';
-import { loadHeroModel } from './hero.js';
 import { FACTIONS } from './GrudgeFactionRegistry.js';
 
 // Null animation stub — prevents crashes when an anim key is missing
@@ -39,22 +37,15 @@ export async function loadPlayerCharacter(scene, parentNode, opts = {}) {
 
   let hero, skeleton, raceChar, useRaceChar = false;
 
-  // ── Try loading the race character GLB ──────────────────────────────────────
-  try {
-    raceChar = await loadRaceCharacter(scene, selectedRace, parentNode, {
-      preset: selectedEquip || undefined,
-      loadAnims: opts.loadAnims !== false,
-    });
-    hero = raceChar.root;
-    skeleton = raceChar.skeleton;
-    useRaceChar = true;
-    console.log(`[PlayerCharacter] Race character loaded: ${selectedRace}`);
-  } catch (err) {
-    console.warn('[PlayerCharacter] Race GLB failed, falling back to HumanBaseMesh:', err.message);
-    const heroModel = await loadHeroModel(scene, parentNode);
-    hero = heroModel.hero;
-    skeleton = heroModel.skeleton;
-  }
+  // ── Load race character GLB (no fallback — race chars are the only option) ───
+  raceChar = await loadRaceCharacter(scene, selectedRace, parentNode, {
+    preset: selectedEquip || undefined,
+    loadAnims: opts.loadAnims !== false,
+  });
+  hero = raceChar.root;
+  skeleton = raceChar.skeleton;
+  useRaceChar = true;
+  console.log(`[PlayerCharacter] Race character loaded: ${selectedRace}`);
 
   // ── Build animation bridge ──────────────────────────────────────────────────
   // movement.js expects: anim.BreathingIdle, anim.Running, anim.Jump, anim.Roll,
@@ -80,10 +71,6 @@ export async function loadPlayerCharacter(scene, parentNode, opts = {}) {
 
     // Hot-swap real jump/roll/block GLBs async
     _loadExtraAnims(scene, skeleton, anim);
-  } else {
-    // Old GLB fallback — uses baked Mixamo AnimationGroups
-    const { setupAnim } = await import('../utils/anim.js');
-    anim = setupAnim(scene, skeleton);
   }
 
   // ── Faction info for HUD ────────────────────────────────────────────────────
