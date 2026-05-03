@@ -205,13 +205,17 @@ function setupTerrain(scene) {
 
 
 function setupLighting(scene) {
-    const light = new BABYLON.DirectionalLight("light0", new BABYLON.Vector3(-800, -1400, -1000), scene);
-    light.intensity = 1.7;
-    // light.shadowMinZ = 1800;
-    // light.shadowMinZ = 2100;
-    light.shadowMinZ = 1500;
-    light.shadowMaxZ = 2300;
-    light.diffuse = new BABYLON.Color3(1, 1, 1);
+    const light = new BABYLON.DirectionalLight("light0", new BABYLON.Vector3(-400, -2000, -600), scene);
+    light.intensity = 1.8;
+    light.shadowMinZ = 1200;
+    light.shadowMaxZ = 2800;
+    light.diffuse = new BABYLON.Color3(1, 0.98, 0.95);
+
+    // Hemisphere fill for ambient — prevents pitch-black shadows
+    const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+    hemi.intensity = 0.35;
+    hemi.diffuse = new BABYLON.Color3(0.85, 0.88, 1.0);
+    hemi.groundColor = new BABYLON.Color3(0.15, 0.12, 0.1);
 
     // var light = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
     // light.intensity = 1.7;
@@ -225,7 +229,7 @@ function setupLighting(scene) {
 
 function setupShadows(light, shadowCaster) {
 
-    const shadowGenerator = new BABYLON.ShadowGenerator(1024, light);
+    const shadowGenerator = new BABYLON.ShadowGenerator(2048, light);
     // shadowGenerator.useExponentialShadowMap = false;
     shadowGenerator.darkness = 0.6;
     // shadowGenerator.darkness = 1;

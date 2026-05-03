@@ -680,19 +680,41 @@ function handleCharacterMovement(
     }
   }
 
+  // Space = Jump
   if (inputMap[" "]) {
+    anim.Jump.start(false, 1.0, anim.Jump.from + 30, anim.Jump.to - 40, false);
+  }
+
+  // Ctrl = Roll
+  if (inputMap["Control"]) {
     anim.BreathingIdle.stop();
     anim.Running.stop();
     anim.Roll.start(false, 2.0, anim.Roll.from, anim.Roll.to, true);
-    // speed = rollSpeed;
-    // setTimeout(() => speed = normalSpeed, 800);
   }
 
-  if (inputMap["v"]) {
-    // let jumpImpulse = new BABYLON.Vector3(0, 20, 0);
-    anim.Jump.start(false, 1.0, anim.Jump.from + 30, anim.Jump.to - 40, false);
-    if (character.physicsImpostor) {
-      // character.physicsImpostor.applyImpulse(jumpImpulse, character.getAbsolutePosition());
+  // Key 3 = Dash/Charge attack at target
+  if (inputMap["3"]) {
+    if (PLAYER.target && PLAYER.target.health && PLAYER.target.health.isAlive) {
+      anim.BreathingIdle.stop();
+      anim.Running.stop();
+      // Start attack anim
+      if (!anim.Attack.isPlaying) {
+        anim.Attack.start(false, 1.3, anim.Attack.from, anim.Attack.to - 20, true);
+      }
+      // Dash toward target
+      const targetPos = PLAYER.target.position || PLAYER.target.parent?.position;
+      if (targetPos) {
+        const dashDir = targetPos.subtract(character.position).normalize();
+        const dashSpeed = 300;
+        const dashVelocity = dashDir.scale(dashSpeed);
+        dashVelocity.y = dummyAggregate.body.getLinearVelocity().y;
+        dummyAggregate.body.setLinearVelocity(dashVelocity);
+        // Face target
+        const dashAngle = Math.atan2(dashDir.x, dashDir.z);
+        hero.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(dashAngle, Math.PI, 0);
+        hero.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(Math.PI, 0, 0)
+          .multiply(hero.rotationQuaternion);
+      }
     }
   }
 

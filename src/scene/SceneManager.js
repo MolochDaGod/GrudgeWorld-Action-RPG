@@ -151,11 +151,11 @@ class SceneManager {
     `;
     help.innerHTML = `
       <div style="font-weight:bold; letter-spacing:2px; margin-bottom:4px;">CONTROLS</div>
-      <div><b>WASD</b> / Arrows — move</div>
-      <div><b>Space</b> — roll &nbsp; <b>Shift+W</b> — sprint (toggle <b>F</b>)</div>
-      <div><b>LMB</b> — attack &nbsp; <b>Tab</b> — cycle target</div>
-      <div><b>RMB</b> — aim &nbsp; <b>X</b> — swap shoulder &nbsp; <b>C</b> — FPS</div>
-      <div><b>1 / 2 / 5 / R</b> — spells &nbsp; <b>F1–F4</b> — scenes</div>
+      <div><b>WASD</b> — move &nbsp; <b>Q/E</b> — strafe</div>
+      <div><b>Space</b> — jump &nbsp; <b>Ctrl</b> — roll &nbsp; <b>F</b> — sprint</div>
+      <div><b>LMB</b> — attack &nbsp; <b>3</b> — dash &nbsp; <b>Tab</b> — target</div>
+      <div><b>RMB</b> — aim &nbsp; <b>X</b> — shoulder &nbsp; <b>F5</b> — FPS</div>
+      <div><b>C</b> — panel &nbsp; <b>1/2/4/5/R</b> — spells &nbsp; <b>F1–F4</b> — scenes</div>
     `;
     document.body.appendChild(help);
   }

@@ -223,12 +223,12 @@ export class GrudgeCamera {
   attachControls() {
     const canvas = this._engine.getRenderingCanvas();
 
-    // X → shoulder swap (V is reserved for jump in movement.js)
-    // C → FPS toggle
+    // X → shoulder swap
+    // F5 → FPS toggle (C is now main panel per KeybindManager)
     this._onKeyDown = (e) => {
       const k = e.key;
       if (k === 'x' || k === 'X') this.changeShoulder();
-      if (k === 'c' || k === 'C') this.toggleFPS();
+      if (k === 'F5') { e.preventDefault(); this.toggleFPS(); }
     };
     window.addEventListener('keydown', this._onKeyDown);
 
@@ -306,20 +306,27 @@ export class GrudgeCamera {
   }
 
   _updateFPS() {
+    // Fix near-clip for FPS mode
+    this._camera.minZ = 0.1;
+
+    // Hide character mesh in FPS so you don't see inside your own head
+    if (this._hero) {
+      if (this._hero.setEnabled) this._hero.setEnabled(false);
+    }
+
     // Snap camera to hero head bone (if accessible) or above character
     const head = this._findHeadBone();
     if (head) {
-      // Get world position of head bone
       const headWorld = BABYLON.Vector3.TransformCoordinates(
         BABYLON.Vector3.Zero(),
         head.getWorldMatrix()
       );
       this._camera.target.copyFrom(headWorld);
-      this._camera.radius = 0.01;
+      this._camera.radius = 0.05;
     } else {
       const pos = this._character.position;
       this._camera.target = new BABYLON.Vector3(pos.x, pos.y + 1.75, pos.z);
-      this._camera.radius = 0.01;
+      this._camera.radius = 0.05;
     }
   }
 
@@ -349,8 +356,13 @@ export class GrudgeCamera {
   /** Toggle FPS/TPS view (YAZH: Camera.changeView) */
   toggleFPS() {
     this._isFPS = !this._isFPS;
-    this._camera.lowerRadiusLimit = this._isFPS ? 0 : 1;
-    this.setCrosshairVisible(!this._isFPS);  // hide crosshair in FPS (pointer-lock handles it)
+    this._camera.lowerRadiusLimit = this._isFPS ? 0 : 3;
+    this._camera.minZ = this._isFPS ? 0.1 : 1;
+    // Show/hide character mesh
+    if (this._hero && this._hero.setEnabled) {
+      this._hero.setEnabled(!this._isFPS);
+    }
+    this.setCrosshairVisible(!this._isFPS);
     this._updateModeLabel();
   }
 
