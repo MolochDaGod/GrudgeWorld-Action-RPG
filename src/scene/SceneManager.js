@@ -21,10 +21,10 @@ import { buildHotbar }            from '../utils/Hotbar.js';
 // ─── Scene catalog ────────────────────────────────────────────────────────────
 
 const SCENE_CATALOG = [
+  { key: 'character_create', label: '⚔️ Create',      fn: createCharacterCreate,  hotkey: 'F4' },
   { key: 'outdoor',          label: '🌲 Outdoor',    fn: createOutdoor,         hotkey: 'F1' },
   { key: 'inn',              label: '🏠 Inn',         fn: createInn,             hotkey: 'F2' },
   { key: 'builder',          label: '🔨 Builder',     fn: createBuilder,         hotkey: 'F3' },
-  { key: 'character_create', label: '⚔️ Create',      fn: createCharacterCreate,  hotkey: 'F4' },
 ];
 
 // ─── SceneManager ─────────────────────────────────────────────────────────────
