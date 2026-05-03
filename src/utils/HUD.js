@@ -113,8 +113,8 @@ export class GrudgeHUD {
       /* ── HUD Root ─────────────────────────────── */
       #grudgeHUD {
         position: fixed;
-        bottom: 24px;
-        left: 24px;
+        top: 16px;
+        left: 16px;
         display: flex;
         align-items: center;
         gap: 12px;

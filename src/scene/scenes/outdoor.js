@@ -19,6 +19,39 @@ function _nullAnim() {
   return { start(){}, stop(){}, play(){}, isPlaying: false, from: 0, to: 0, setWeightForAllAnimatables(){} };
 }
 
+// Load extra weapon-pack GLB anims and hot-swap into the anim bridge
+async function _loadExtraAnims(scene, skeleton, anim) {
+  const extras = {
+    Jump:  './assets/glb/anims/sword_shield/sword_and_shield_jump.glb',
+    Roll:  './assets/glb/anims/longbow/standing_dodge_forward.glb',
+    Block: './assets/glb/anims/sword_shield/sword_and_shield_block.glb',
+  };
+  for (const [key, path] of Object.entries(extras)) {
+    try {
+      const folder = path.substring(0, path.lastIndexOf('/') + 1);
+      const file = path.substring(path.lastIndexOf('/') + 1);
+      const result = await BABYLON.SceneLoader.ImportMeshAsync(null, folder, file, scene);
+      if (result.animationGroups?.length > 0) {
+        const ag = result.animationGroups[0];
+        ag.name = key;
+        // Retarget to our skeleton
+        if (skeleton) {
+          const boneMap = {};
+          for (const bone of skeleton.bones) boneMap[bone.name] = bone;
+          for (const ta of ag.targetedAnimations) {
+            if (ta.target?.name && boneMap[ta.target.name]) ta.target = boneMap[ta.target.name];
+          }
+        }
+        for (const m of result.meshes) m.dispose();
+        anim[key] = ag;
+        console.log(`[outdoor] Extra anim loaded: ${key}`);
+      }
+    } catch (e) {
+      console.warn(`[outdoor] Extra anim ${key} failed:`, e.message);
+    }
+  }
+}
+
 export async function createOutdoor(engine) {
   const scene = new BABYLON.Scene(engine);
 
@@ -97,12 +130,16 @@ export async function createOutdoor(engine) {
     anim = {
       BreathingIdle: ra.idle       || ra.combatIdle || _nullAnim(),
       Running:       ra.combatRun  || _nullAnim(),
-      Jump:          ra.idle       || _nullAnim(),  // use idle as placeholder until jump FBX added
-      Roll:          ra.combatRun  || _nullAnim(),  // roll anim placeholder
+      Jump:          ra.idle       || _nullAnim(),
+      Roll:          ra.hit        || _nullAnim(),  // dodge/roll uses hit react until dodge GLB wired
       SelfCast:      ra.attack3    || _nullAnim(),
       Combo:         ra.attack2    || _nullAnim(),
       Attack:        ra.attack1    || _nullAnim(),
+      Block:         ra.block      || _nullAnim(),  // block/parry
     };
+
+    // Load additional anims from GLB packs asynchronously (jump, dodge, block)
+    _loadExtraAnims(scene, skeleton, anim);
     // Enable blending for race anims
     scene.animationPropertiesOverride = new BABYLON.AnimationPropertiesOverride();
     scene.animationPropertiesOverride.enableBlending = true;
