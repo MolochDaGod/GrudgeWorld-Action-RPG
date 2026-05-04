@@ -4,6 +4,7 @@ import { GrudgeCamera } from '../../utils/GrudgeCamera.js';
 import { GrudgeHUD } from '../../utils/HUD.js';
 import { TargetFrame } from '../../ui/TargetFrame.js';
 import { SettingsPanel } from '../../ui/SettingsPanel.js';
+import { AdminPanel } from '../../ui/AdminPanel.js';
 import { setupPhysics } from '../../utils/physics.js';
 import { setupInputHandling } from '../../movement.js';
 import { setupWater } from '../../utils/water.js';
@@ -95,6 +96,10 @@ export async function createOutdoor(engine) {
   // ── Settings Panel (Escape key) ─────────────────────────────────────────
   const settings = new SettingsPanel();
   scene.onDisposeObservable.add(() => settings.dispose());
+
+  // ── Admin Panel (P key) — Object Storage browser ───────────────────────
+  const admin = new AdminPanel();
+  scene.onDisposeObservable.add(() => admin.dispose());
 
   // Todo: add shadow and post toggles in settings
   // Defer non-critical operations
