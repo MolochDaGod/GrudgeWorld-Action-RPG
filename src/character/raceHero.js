@@ -50,8 +50,9 @@ export async function loadRaceCharacter(scene, raceId, parent, options = {}) {
     root.parent = parent;
   }
 
-  // Standard scale/position for Bip001-skeleton FBX (match existing human_basemesh)
-  root.scaling.scaleInPlace(0.018);
+  // GLB scale: FBX2glTF bakes cm→m conversion and Bip001 has scale 2.54 inside.
+  // The root needs ~0.4 to match the game world scale (was 0.018 for raw FBX).
+  root.scaling.scaleInPlace(0.4);
   root.position.y = -1.1;
   root.rotation.y = Math.PI; // face forward
 
