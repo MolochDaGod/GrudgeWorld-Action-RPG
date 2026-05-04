@@ -19,7 +19,7 @@ function _makeSlashPS(scene, emitter, preset) {
     2000,
     scene,
   );
-  ps.particleTexture = new BABYLON.Texture("textures/flare.png", scene);
+  ps.particleTexture = new BABYLON.Texture("assets/textures/effects/flare.png", scene);
   ps.emitter = emitter;
   ps.minEmitBox = new BABYLON.Vector3(-0.5, 0, -0.3);
   ps.maxEmitBox = new BABYLON.Vector3(0.5, 0, 0.3);
@@ -141,7 +141,7 @@ export function LightningBallVFX(caster, target, scene) {
 
 function _makeHaloPS(scene, emitter) {
   const ps = new BABYLON.ParticleSystem("halo_" + Date.now(), 300, scene);
-  ps.particleTexture = new BABYLON.Texture("textures/flare.png", scene);
+  ps.particleTexture = new BABYLON.Texture("assets/textures/effects/flare.png", scene);
   ps.emitter = emitter;
   ps.minEmitBox = new BABYLON.Vector3(-0.4, -0.4, -0.4);
   ps.maxEmitBox = new BABYLON.Vector3(0.4, 0.4, 0.4);
@@ -214,7 +214,7 @@ function _fireLightningBolt(scene, from, to, onComplete) {
 
 function _spawnImpactBurst(scene, position) {
   const ps = new BABYLON.ParticleSystem("impact_" + Date.now(), 400, scene);
-  ps.particleTexture = new BABYLON.Texture("textures/flare.png", scene);
+  ps.particleTexture = new BABYLON.Texture("assets/textures/effects/flare.png", scene);
   ps.emitter = position;
   ps.minEmitBox = ps.maxEmitBox = new BABYLON.Vector3(0, 0, 0);
   ps.color1 = new BABYLON.Color4(1.0, 1.0, 1.0, 1.0);
@@ -317,7 +317,7 @@ function _launchOrb(scene, from, targetMesh, index) {
     160,
     scene,
   );
-  trail.particleTexture = new BABYLON.Texture("textures/flare.png", scene);
+  trail.particleTexture = new BABYLON.Texture("assets/textures/effects/flare.png", scene);
   trail.emitter = orb;
   trail.minEmitBox = trail.maxEmitBox = new BABYLON.Vector3(0, 0, 0);
   trail.color1 = new BABYLON.Color4(col.r, col.g, col.b, 0.9);
@@ -373,7 +373,7 @@ export function HealBurstVFX(caster, target, scene) {
   pos.y += 0.5;
 
   const ps = new BABYLON.ParticleSystem("healBurst_" + Date.now(), 500, scene);
-  ps.particleTexture = new BABYLON.Texture("textures/flare.png", scene);
+  ps.particleTexture = new BABYLON.Texture("assets/textures/effects/flare.png", scene);
   ps.emitter = pos;
   ps.minEmitBox = new BABYLON.Vector3(-0.5, 0, -0.5);
   ps.maxEmitBox = new BABYLON.Vector3(0.5, 0, 0.5);
@@ -439,7 +439,7 @@ export function AOEExplosionVFX(caster, radius, scene) {
 
   // Outward particle burst
   const ps = new BABYLON.ParticleSystem("aoeBlast_" + Date.now(), 700, scene);
-  ps.particleTexture = new BABYLON.Texture("textures/flare.png", scene);
+  ps.particleTexture = new BABYLON.Texture("assets/textures/effects/flare.png", scene);
   ps.emitter = origin.clone();
   ps.minEmitBox = new BABYLON.Vector3(-0.3, 0, -0.3);
   ps.maxEmitBox = new BABYLON.Vector3(0.3, 0.5, 0.3);
@@ -476,7 +476,7 @@ export function PoisonCloudVFX(caster, target, scene, durationMs = 4000) {
     150,
     scene,
   );
-  ps.particleTexture = new BABYLON.Texture("textures/flare.png", scene);
+  ps.particleTexture = new BABYLON.Texture("assets/textures/effects/flare.png", scene);
   ps.emitter = targetMesh; // follows the target automatically
   ps.minEmitBox = new BABYLON.Vector3(-0.8, 0, -0.8);
   ps.maxEmitBox = new BABYLON.Vector3(0.8, 1.5, 0.8);
@@ -509,7 +509,7 @@ export function BuffGlowVFX(caster, target, scene, durationMs = 3000) {
   const targetMesh = target.parent;
 
   const ps = new BABYLON.ParticleSystem("buffGlow_" + Date.now(), 120, scene);
-  ps.particleTexture = new BABYLON.Texture("textures/flare.png", scene);
+  ps.particleTexture = new BABYLON.Texture("assets/textures/effects/flare.png", scene);
   ps.emitter = targetMesh;
   ps.minEmitBox = new BABYLON.Vector3(-0.5, 0, -0.5);
   ps.maxEmitBox = new BABYLON.Vector3(0.5, 2.0, 0.5);

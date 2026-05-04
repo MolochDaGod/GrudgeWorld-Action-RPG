@@ -14,7 +14,10 @@ export default function addSword(scene, sword) {
         console.error("Sword material is not a PBRMaterial or is not assigned");
     }
 
-    const rightHand = findAllMeshesByName(scene.meshes, "mixamorig:RightHand")[0];
+    // Try Bip001 skeleton first (Toon_RTS race chars), then Mixamo fallback
+    let rightHand = findAllMeshesByName(scene.meshes, "R_hand_container")[0]
+                 || findAllMeshesByName(scene.meshes, "Bip001 R Hand")[0]
+                 || findAllMeshesByName(scene.meshes, "mixamorig:RightHand")[0];
     attachSwordToBone(specificChild, rightHand);
     return specificChild;
 
@@ -34,12 +37,18 @@ function findAllMeshesByName(meshes, name) {
 }
 
 function attachSwordToBone(sword, rightHand) {
-    let position = new BABYLON.Vector3(0, 26, 10);
-    let scaling = new BABYLON.Vector3(500, 500, 500);
+    if (!rightHand) {
+        console.warn('[held.js] No right hand bone found — sword not attached');
+        return;
+    }
+    // Bip001 skeleton uses different scale/position than Mixamo
+    const isBip = rightHand.name.includes('Bip001') || rightHand.name.includes('R_hand');
+    let position = isBip ? new BABYLON.Vector3(0, 0.1, 0.04) : new BABYLON.Vector3(0, 26, 10);
+    let scaling  = isBip ? new BABYLON.Vector3(2, 2, 2)       : new BABYLON.Vector3(500, 500, 500);
     let rotation = BABYLON.Quaternion.FromEulerAngles(
-        degreesToRadians(0),    // 0 degrees in radians
-        degreesToRadians(100),  // 100 degrees in radians
-        degreesToRadians(180)   // 180 degrees in radians
+        degreesToRadians(0),
+        degreesToRadians(100),
+        degreesToRadians(180)
     );
     attachToBone(sword, rightHand, position, scaling, rotation);
 }
