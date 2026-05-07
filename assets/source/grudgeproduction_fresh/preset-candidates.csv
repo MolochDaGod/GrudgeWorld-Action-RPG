@@ -1,0 +1,16 @@
+race,slot,variant,sourceFile
+human,sword,A,assets/source/grudgeproduction_fresh/Toon_RTS/WesternKingdoms/models/extra models/equipment/WK_weapon_sword_A.FBX
+human,staff,B,assets/source/grudgeproduction_fresh/Toon_RTS/WesternKingdoms/models/extra models/equipment/WK_weapon_staff_B.FBX
+barbarian,sword,B,assets/source/grudgeproduction_fresh/Toon_RTS/Barbarians/models/extra models/Equipment/BRB_weapon_sword_B.FBX
+barbarian,hammer,B,assets/source/grudgeproduction_fresh/Toon_RTS/Barbarians/models/extra models/Equipment/BRB_weapon_hammer_B.FBX
+barbarian,spear,A,assets/source/grudgeproduction_fresh/Toon_RTS/Barbarians/models/extra models/Equipment/BRB_weapon_spear.FBX
+barbarian,staff,B,assets/source/grudgeproduction_fresh/Toon_RTS/Barbarians/models/extra models/Equipment/BRB_weapon_staff_B.FBX
+elf,spear,A,assets/source/grudgeproduction_fresh/Toon_RTS/Elves/models/extra models/equipment/ELF_weapon_spear.FBX
+elf,staff,C,assets/source/grudgeproduction_fresh/Toon_RTS/Elves/models/extra models/equipment/ELF_weapon_staff_C.FBX
+orc,axe,A,assets/source/grudgeproduction_fresh/Toon_RTS/Orcs/models/extra_models/Equipment/ORC_weapon_Axe_A.FBX
+orc,staff,B,assets/source/grudgeproduction_fresh/Toon_RTS/Orcs/models/extra_models/Equipment/ORC_weapon_staff_B.FBX
+orc,shield,D,assets/source/grudgeproduction_fresh/Toon_RTS/Orcs/models/extra_models/Equipment/ORC_Shield_D.FBX
+undead,sword,C,assets/source/grudgeproduction_fresh/Toon_RTS/Undead/models/extra_models/Equipment/UD_weapon_Sword_C.FBX
+undead,spear,A,assets/source/grudgeproduction_fresh/Toon_RTS/Undead/models/extra_models/Equipment/UD_weapon_Spear.FBX
+undead,staff,B,assets/source/grudgeproduction_fresh/Toon_RTS/Undead/models/extra_models/Equipment/UD_weapon_staff_B.FBX
+undead,shield,C,assets/source/grudgeproduction_fresh/Toon_RTS/Undead/models/extra_models/Equipment/UD_Shield_C.FBX

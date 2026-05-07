@@ -1,0 +1,209 @@
+{
+  "generatedAt": "2026-05-07T08:46:22.563Z",
+  "races": {
+    "human": {
+      "starterPresetSuggestion": {
+        "body": "A",
+        "arms": "A",
+        "legs": "A",
+        "head": "A",
+        "weapon": {
+          "type": "sword",
+          "variant": "A"
+        },
+        "shield": null
+      },
+      "available": {
+        "sword": [
+          {
+            "variant": "A",
+            "source": "assets/source/grudgeproduction_fresh/Toon_RTS/WesternKingdoms/models/extra models/equipment/WK_weapon_sword_A.FBX"
+          }
+        ],
+        "axe": [],
+        "hammer": [],
+        "spear": [],
+        "bow": [],
+        "staff": [
+          {
+            "variant": "B",
+            "source": "assets/source/grudgeproduction_fresh/Toon_RTS/WesternKingdoms/models/extra models/equipment/WK_weapon_staff_B.FBX"
+          }
+        ],
+        "shield": []
+      }
+    },
+    "barbarian": {
+      "starterPresetSuggestion": {
+        "body": "A",
+        "arms": "A",
+        "legs": "A",
+        "head": "A",
+        "weapon": {
+          "type": "sword",
+          "variant": "B"
+        },
+        "shield": null
+      },
+      "available": {
+        "sword": [
+          {
+            "variant": "B",
+            "source": "assets/source/grudgeproduction_fresh/Toon_RTS/Barbarians/models/extra models/Equipment/BRB_weapon_sword_B.FBX"
+          }
+        ],
+        "axe": [],
+        "hammer": [
+          {
+            "variant": "B",
+            "source": "assets/source/grudgeproduction_fresh/Toon_RTS/Barbarians/models/extra models/Equipment/BRB_weapon_hammer_B.FBX"
+          }
+        ],
+        "spear": [
+          {
+            "variant": "A",
+            "source": "assets/source/grudgeproduction_fresh/Toon_RTS/Barbarians/models/extra models/Equipment/BRB_weapon_spear.FBX"
+          }
+        ],
+        "bow": [],
+        "staff": [
+          {
+            "variant": "B",
+            "source": "assets/source/grudgeproduction_fresh/Toon_RTS/Barbarians/models/extra models/Equipment/BRB_weapon_staff_B.FBX"
+          }
+        ],
+        "shield": []
+      }
+    },
+    "elf": {
+      "starterPresetSuggestion": {
+        "body": "A",
+        "arms": "A",
+        "legs": "A",
+        "head": "A",
+        "weapon": {
+          "type": "spear",
+          "variant": "A"
+        },
+        "shield": null
+      },
+      "available": {
+        "sword": [],
+        "axe": [],
+        "hammer": [],
+        "spear": [
+          {
+            "variant": "A",
+            "source": "assets/source/grudgeproduction_fresh/Toon_RTS/Elves/models/extra models/equipment/ELF_weapon_spear.FBX"
+          }
+        ],
+        "bow": [],
+        "staff": [
+          {
+            "variant": "C",
+            "source": "assets/source/grudgeproduction_fresh/Toon_RTS/Elves/models/extra models/equipment/ELF_weapon_staff_C.FBX"
+          }
+        ],
+        "shield": []
+      }
+    },
+    "dwarf": {
+      "starterPresetSuggestion": {
+        "body": "A",
+        "arms": "A",
+        "legs": "A",
+        "head": "A",
+        "weapon": null,
+        "shield": null
+      },
+      "available": {
+        "sword": [],
+        "axe": [],
+        "hammer": [],
+        "spear": [],
+        "bow": [],
+        "staff": [],
+        "shield": []
+      }
+    },
+    "orc": {
+      "starterPresetSuggestion": {
+        "body": "A",
+        "arms": "A",
+        "legs": "A",
+        "head": "A",
+        "weapon": {
+          "type": "axe",
+          "variant": "A"
+        },
+        "shield": "D"
+      },
+      "available": {
+        "sword": [],
+        "axe": [
+          {
+            "variant": "A",
+            "source": "assets/source/grudgeproduction_fresh/Toon_RTS/Orcs/models/extra_models/Equipment/ORC_weapon_Axe_A.FBX"
+          }
+        ],
+        "hammer": [],
+        "spear": [],
+        "bow": [],
+        "staff": [
+          {
+            "variant": "B",
+            "source": "assets/source/grudgeproduction_fresh/Toon_RTS/Orcs/models/extra_models/Equipment/ORC_weapon_staff_B.FBX"
+          }
+        ],
+        "shield": [
+          {
+            "variant": "D",
+            "source": "assets/source/grudgeproduction_fresh/Toon_RTS/Orcs/models/extra_models/Equipment/ORC_Shield_D.FBX"
+          }
+        ]
+      }
+    },
+    "undead": {
+      "starterPresetSuggestion": {
+        "body": "A",
+        "arms": "A",
+        "legs": "A",
+        "head": "A",
+        "weapon": {
+          "type": "sword",
+          "variant": "C"
+        },
+        "shield": "C"
+      },
+      "available": {
+        "sword": [
+          {
+            "variant": "C",
+            "source": "assets/source/grudgeproduction_fresh/Toon_RTS/Undead/models/extra_models/Equipment/UD_weapon_Sword_C.FBX"
+          }
+        ],
+        "axe": [],
+        "hammer": [],
+        "spear": [
+          {
+            "variant": "A",
+            "source": "assets/source/grudgeproduction_fresh/Toon_RTS/Undead/models/extra_models/Equipment/UD_weapon_Spear.FBX"
+          }
+        ],
+        "bow": [],
+        "staff": [
+          {
+            "variant": "B",
+            "source": "assets/source/grudgeproduction_fresh/Toon_RTS/Undead/models/extra_models/Equipment/UD_weapon_staff_B.FBX"
+          }
+        ],
+        "shield": [
+          {
+            "variant": "C",
+            "source": "assets/source/grudgeproduction_fresh/Toon_RTS/Undead/models/extra_models/Equipment/UD_Shield_C.FBX"
+          }
+        ]
+      }
+    }
+  }
+}
