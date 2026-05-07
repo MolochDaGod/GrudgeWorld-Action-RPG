@@ -65,7 +65,14 @@ class SceneManager {
     this.activeScene = this.scenes[index];
     this.activeGUI   = this.guiTextures.get(this.activeScene);
     this.engine.runRenderLoop(() => this.activeScene.render());
-    if (DEBUG) this.activeScene.debugLayer.show();
+    if (DEBUG) {
+      // Load inspector on-demand from CDN so it's never shipped to prod users
+      if (!window._inspectorLoaded) {
+        await BABYLON.Tools.LoadScriptAsync('https://cdn.babylonjs.com/inspector/babylon.inspector.bundle.js');
+        window._inspectorLoaded = true;
+      }
+      this.activeScene.debugLayer.show();
+    }
   }
 
   /** Navigate to a named scene key; disposes current and loads fresh */
