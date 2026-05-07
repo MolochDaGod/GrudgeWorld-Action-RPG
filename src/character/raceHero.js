@@ -16,7 +16,7 @@
  *   const raceChar = await loadRaceCharacter(scene, 'orc', parentNode);
  */
 
-import { FACTIONS, ANIMATION_PACKS, classifyMeshPart, getSlotPBR } from './GrudgeFactionRegistry.js';
+import { FACTIONS, ANIMATION_PACKS, classifyMeshPart, getSlotPBR, CLASS_BUILDS } from './GrudgeFactionRegistry.js';
 import { GrudgeEquipmentManager } from './GrudgeEquipmentManager.js';
 
 // ── Texture cache (loaded once, reused across race switches) ────────────────
@@ -65,7 +65,7 @@ export async function loadRaceCharacter(scene, raceId, parent, options = {}) {
   const faction = FACTIONS[raceId];
   if (!faction) throw new Error(`Unknown race: ${raceId}`);
 
-  const { preset, loadAnims = true } = options;
+  const { preset, loadAnims = true, classId = 'warrior' } = options;
 
   // ── 1. Load GLB model ─────────────────────────────────────────────────────
   const url = faction.modelPath;
@@ -92,7 +92,8 @@ export async function loadRaceCharacter(scene, raceId, parent, options = {}) {
   ]);
 
   // ── 3. Classify meshes and apply proper PBR materials ─────────────────────
-  const armorType = 'leather'; // default; overridden by class later
+  const classBuild = CLASS_BUILDS[classId] || CLASS_BUILDS.warrior;
+  const armorType = classBuild.armorType || 'leather';
   for (const mesh of result.meshes) {
     if (!mesh.getTotalVertices || mesh.getTotalVertices() === 0) continue;
 
@@ -158,7 +159,8 @@ export async function loadRaceCharacter(scene, raceId, parent, options = {}) {
   const equipManager = new GrudgeEquipmentManager(faction.prefix);
   equipManager.catalog(result.meshes);
 
-  const starterPreset = preset || _defaultPreset(raceId);
+  // Apply class-specific equipment build (weapon, shield, head preference)
+  const starterPreset = preset || _classPreset(raceId, classId);
   equipManager.applyPreset(starterPreset);
 
   // ── 6. Scale & ground using VISIBLE meshes only ───────────────────────────
@@ -199,8 +201,9 @@ export async function loadRaceCharacter(scene, raceId, parent, options = {}) {
 
   // ── 8. Build RaceCharacter handle ─────────────────────────────────────────
   const raceChar = new RaceCharacter({
-    raceId, faction, root, skeleton, result,
+    raceId, classId, faction, root, skeleton, result,
     equipManager, animActions, scene, rootMotionObserver,
+    raceTex, normalTex,
   });
 
   if (animActions['idle']) raceChar.playAnim('idle');
@@ -211,8 +214,9 @@ export async function loadRaceCharacter(scene, raceId, parent, options = {}) {
 // ─── RaceCharacter ────────────────────────────────────────────────────────────
 
 class RaceCharacter {
-  constructor({ raceId, faction, root, skeleton, result, equipManager, animActions, scene, rootMotionObserver }) {
+  constructor({ raceId, classId, faction, root, skeleton, result, equipManager, animActions, scene, rootMotionObserver, raceTex, normalTex }) {
     this.raceId       = raceId;
+    this.classId      = classId;
     this.faction      = faction;
     this.root         = root;
     this.skeleton     = skeleton;
@@ -222,6 +226,38 @@ class RaceCharacter {
     this._scene       = scene;
     this._currentAnim = null;
     this._rootMotionObserver = rootMotionObserver;
+    this._raceTex     = raceTex;
+    this._normalTex   = normalTex;
+  }
+
+  /**
+   * Switch class build — updates armor PBR materials + equips class weapon/shield.
+   * Called when the player changes class in the character creator.
+   */
+  applyClassBuild(newClassId) {
+    this.classId = newClassId;
+    const build = CLASS_BUILDS[newClassId] || CLASS_BUILDS.warrior;
+    const armorType = build.armorType || 'leather';
+
+    // Update PBR roughness/metalness on every mesh based on new armor type
+    for (const mesh of this.result.meshes) {
+      if (!mesh.material || !mesh.material.roughness === undefined) continue;
+      const partType = classifyMeshPart(mesh.name);
+      const pbr = getSlotPBR(partType, armorType);
+      if (partType === 'skin' || partType === 'head') {
+        mesh.material.roughness = 0.70;
+        mesh.material.metallic  = 0.0;
+      } else {
+        mesh.material.roughness = pbr.roughness;
+        mesh.material.metallic  = pbr.metalness;
+      }
+    }
+
+    // Apply class equipment preset
+    const preset = _classPreset(this.raceId, newClassId);
+    this.equipManager.applyPreset(preset);
+
+    console.log(`[raceHero] Class build applied: ${newClassId} (${armorType})`);
   }
 
   playAnim(key, loop = true, blendTime = 0.15) {
@@ -303,14 +339,36 @@ function _retargetAnimGroup(animGroup, targetSkeleton) {
   }
 }
 
-function _defaultPreset(raceId) {
-  const presets = {
-    human:     { body: 'B', arms: 'A', legs: 'A', head: 'B', shoulders: 'A', weapon: { type: 'sword', variant: 'A' }, shield: 'A' },
-    barbarian: { body: 'C', arms: 'B', legs: 'B', head: 'A', weapon: { type: 'axe', variant: 'A' } },
-    elf:       { body: 'A', arms: 'A', legs: 'A', head: 'C', weapon: { type: 'bow', variant: 'A' } },
-    dwarf:     { body: 'D', arms: 'C', legs: 'B', head: 'D', shoulders: 'B', weapon: { type: 'hammer', variant: 'A' }, shield: 'B' },
-    orc:       { body: 'E', arms: 'D', legs: 'C', head: 'E', weapon: { type: 'axe', variant: 'B' } },
-    undead:    { body: 'B', arms: 'A', legs: 'A', head: 'F', weapon: { type: 'staff', variant: 'A' } },
+/**
+ * Build the equipment preset for a race + class combination.
+ * Uses CLASS_BUILDS for weapon/shield/armor, race-specific body/arms/legs defaults.
+ */
+function _classPreset(raceId, classId) {
+  const build = CLASS_BUILDS[classId] || CLASS_BUILDS.warrior;
+
+  // Race-specific armor slot defaults (which body/arms/legs/head variant looks best)
+  const raceDefaults = {
+    human:     { body: 'B', arms: 'A', legs: 'A', head: 'B', shoulders: 'A' },
+    barbarian: { body: 'C', arms: 'B', legs: 'B', head: 'A' },
+    elf:       { body: 'A', arms: 'A', legs: 'A', head: 'C' },
+    dwarf:     { body: 'D', arms: 'C', legs: 'B', head: 'D', shoulders: 'B' },
+    orc:       { body: 'E', arms: 'D', legs: 'C', head: 'E' },
+    undead:    { body: 'B', arms: 'A', legs: 'A', head: 'A' },
   };
-  return presets[raceId] || {};
+
+  const rd = raceDefaults[raceId] || raceDefaults.human;
+  const preset = { ...rd };
+
+  // Class weapon + shield
+  if (build.weapon) preset.weapon = { ...build.weapon };
+  if (build.shield) preset.shield = build.shield;
+  // No shield for non-warrior classes
+  if (!build.shield) delete preset.shield;
+
+  // Warrior always gets shoulders for the plate look
+  if (classId === 'warrior' && !preset.shoulders) preset.shoulders = 'A';
+  // Non-warrior classes drop shoulders unless race has them by default
+  if (classId !== 'warrior' && !rd.shoulders) delete preset.shoulders;
+
+  return preset;
 }

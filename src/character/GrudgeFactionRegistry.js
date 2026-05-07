@@ -327,3 +327,39 @@ export function getSlotPBR(partType, armorType) {
   if (SLOT_PBR_PROPS.shared[partType]) return SLOT_PBR_PROPS.shared[partType];
   return SLOT_PBR_PROPS.shared.default;
 }
+
+/**
+ * Class build definitions.
+ * Each class specifies its armor material type and default weapon/shield.
+ *   warrior — full metal plate, sword + shield
+ *   ranger  — leather, bow, no shield
+ *   mage    — cloth robes, staff, hat-style head, no shield
+ *   worge   — leather, axe (fallback hammer/mace), no shield
+ */
+export const CLASS_BUILDS = {
+  warrior: {
+    armorType: 'metal',
+    weapon: { type: 'sword', variant: 'A' },
+    shield: 'A',
+    preferHead: null, // use default race head
+  },
+  ranger: {
+    armorType: 'leather',
+    weapon: { type: 'bow', variant: 'default' },
+    shield: null,
+    preferHead: null,
+  },
+  mage: {
+    armorType: 'cloth',
+    weapon: { type: 'staff', variant: 'A' },
+    shield: null,
+    preferHead: null, // mage hats are head variants — pick highest available
+    preferHighHead: true,
+  },
+  worge: {
+    armorType: 'leather',
+    weapon: { type: 'axe', variant: 'A' },
+    shield: null,
+    preferHead: null,
+  },
+};

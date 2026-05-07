@@ -112,8 +112,11 @@ export async function createCharacterCreate(engine) {
     },
     onClassChange: async (classId) => {
       activeClass = classId;
+      // Apply class build: swap armor PBR (metal/leather/cloth) + weapon + shield
+      if (currentRaceChar) currentRaceChar.applyClassBuild(classId);
       _updateStats();
       _updateEquipPanel();
+      _updateSkillsPanel();
       await _loadClassAnims(classId);
       _updateAnimGrid();
     },
@@ -227,7 +230,7 @@ export async function createCharacterCreate(engine) {
     }
 
     try {
-      currentRaceChar = await loadRaceCharacter(scene, raceId, characterNode);
+      currentRaceChar = await loadRaceCharacter(scene, raceId, characterNode, { classId: activeClass });
       for (const mesh of currentRaceChar.result.meshes) {
         shadowGen.addShadowCaster(mesh);
       }
