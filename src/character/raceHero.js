@@ -163,7 +163,14 @@ export async function loadRaceCharacter(scene, raceId, parent, options = {}) {
   const starterPreset = preset || _classPreset(raceId, classId);
   equipManager.applyPreset(starterPreset);
 
-  // ── 6. Scale & ground using VISIBLE meshes only ───────────────────────────
+  // ── 6. Scale & ground using VISIBLE meshes only ───────────────────────
+  // Temporarily detach from parent so bounds are in local space (not affected
+  // by the physics capsule's world position in the outdoor scene).
+  const savedParent = root.parent;
+  root.parent = null;
+  root.position.setAll(0);
+  root.rotation.setAll(0);
+  root.scaling.setAll(1);
   root.computeWorldMatrix(true);
   for (const m of result.meshes) m.computeWorldMatrix(true);
 
@@ -173,13 +180,11 @@ export async function loadRaceCharacter(scene, raceId, parent, options = {}) {
   const scaleFactor = targetHeight / rawHeight;
 
   root.scaling.setAll(scaleFactor);
-
-  // Recompute after scaling
   root.computeWorldMatrix(true);
   for (const m of result.meshes) m.computeWorldMatrix(true);
   const scaledBounds = _visibleBounds(result.meshes);
 
-  // Center horizontally, ground vertically (feet at y=0)
+  // Center horizontally, ground vertically (feet at local y=0)
   const cx = (scaledBounds.min.x + scaledBounds.max.x) / 2;
   const cz = (scaledBounds.min.z + scaledBounds.max.z) / 2;
   root.position.x = -cx;
@@ -188,6 +193,9 @@ export async function loadRaceCharacter(scene, raceId, parent, options = {}) {
 
   // Face camera
   root.rotation.y = typeof prefab.yaw === 'number' ? prefab.yaw : Math.PI;
+
+  // Re-attach to parent
+  root.parent = savedParent;
 
   // ── 7. Animation system ───────────────────────────────────────────────────
   const animActions = {};

@@ -44,6 +44,8 @@ export async function loadPlayerCharacter(scene, parentNode, opts = {}) {
   const requestedRace =
     (typeof CHAR_SELECT !== "undefined" && CHAR_SELECT.race) || "human";
   const selectedRace = FACTIONS[requestedRace] ? requestedRace : "human";
+  const selectedClass =
+    (typeof CHAR_SELECT !== "undefined" && CHAR_SELECT.class) || "warrior";
   const selectedEquip =
     (typeof CHAR_SELECT !== "undefined" && CHAR_SELECT.equip) || null;
 
@@ -56,12 +58,25 @@ export async function loadPlayerCharacter(scene, parentNode, opts = {}) {
   try {
     raceChar = await loadRaceCharacter(scene, selectedRace, parentNode, {
       preset: selectedEquip || undefined,
+      classId: selectedClass,
       loadAnims: opts.loadAnims !== false,
     });
     hero = raceChar.root;
     skeleton = raceChar.skeleton;
     useRaceChar = true;
-    console.log(`[PlayerCharacter] Race character loaded: ${selectedRace}`);
+    // Offset the model down inside the physics capsule so feet are near the bottom.
+    // The physics capsule (height=22) is much taller than the model (~1.85);
+    // -11 puts feet at the capsule's lower hemisphere.
+    if (parentNode && parentNode.getBoundingInfo) {
+      try {
+        const pBi = parentNode.getBoundingInfo();
+        const capsuleHalfH = (pBi.boundingBox.maximumWorld.y - pBi.boundingBox.minimumWorld.y) / 2;
+        hero.position.y = -capsuleHalfH;
+      } catch (_) {
+        hero.position.y = -11; // fallback for height=22 capsule
+      }
+    }
+    console.log(`[PlayerCharacter] Race character loaded: ${selectedRace} class: ${selectedClass}`);
   } catch (err) {
     console.warn(
       "[PlayerCharacter] Selected race failed, retrying with Human race:",
@@ -69,6 +84,7 @@ export async function loadPlayerCharacter(scene, parentNode, opts = {}) {
     );
     try {
       raceChar = await loadRaceCharacter(scene, "human", parentNode, {
+        classId: selectedClass,
         loadAnims: opts.loadAnims !== false,
       });
       hero = raceChar.root;
