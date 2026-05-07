@@ -296,8 +296,9 @@ export async function createCharacterCreate(engine) {
     const summary = currentRaceChar.equipManager.getSummary();
     const classData = classesMap[activeClass];
     const allowed = new Set(classData?.weaponTypes || ['sword','axe','hammer','bow','staff','spear']);
-    const ICONS = { body:'👕', arms:'🧤', legs:'👖', head:'⛑', shoulders:'🦺', sword:'⚔', axe:'🪓', hammer:'🔨', bow:'🏹', staff:'🪄', shield:'🛡' };
-    const LABELS = { body:'Body', arms:'Arms', legs:'Legs', head:'Helmet', shoulders:'Shoulders', sword:'Sword', axe:'Axe', hammer:'Hammer', bow:'Bow', staff:'Staff', shield:'Shield' };
+    const ICONS = { body:'👕', arms:'🧤', legs:'👖', head:'⛑', shoulders:'🦺', sword:'⚔', axe:'🪓', hammer:'🔨', bow:'🏹', staff:'🪄', shield:'🛡', spear:'🗡', lance:'🏇', mace:'🪃', pick:'⛏', dagger:'🗡', bag:'👜', wood:'🪵', quiver:'🏹' };
+    const LABELS = { body:'Body', arms:'Arms', legs:'Legs', head:'Helmet', shoulders:'Shoulders', sword:'Sword', axe:'Axe', hammer:'Hammer', mace:'Mace', pick:'Pick', bow:'Bow', staff:'Staff', spear:'Spear', lance:'Lance', dagger:'Dagger', shield:'Shield', bag:'Bag', wood:'Wood', quiver:'Quiver' };
+    const TIER_LABEL = { cloth:'Cloth', leather:'Leather', plate:'Plate' };
 
     let h = '<div class="cc-equip-grid">';
     for (const [slot, info] of Object.entries(summary)) {
@@ -305,9 +306,12 @@ export async function createCharacterCreate(engine) {
       const isW = WEAPON_SLOTS.has(slot);
       const locked = isW && !allowed.has(slot);
       const idx = info.variants.indexOf(info.equipped);
+      const tierClass = info.equippedTier ? `cc-tier-${info.equippedTier}` : '';
+      const tierLabel = info.equippedTier ? TIER_LABEL[info.equippedTier] || '' : '';
       h += `<div class="cc-equip-slot" ${locked ? 'style="opacity:0.4"' : ''}>
         <span class="cc-equip-icon">${ICONS[slot] || '📦'}</span>
         <span class="cc-equip-label">${LABELS[slot] || slot}${locked ? ' 🔒' : ''}</span>
+        ${tierLabel ? `<span class="cc-tier-badge ${tierClass}">${tierLabel}</span>` : ''}
         <div class="cc-equip-arrows">
           <button class="cc-eq-prev" data-slot="${slot}" ${locked || idx <= 0 ? 'disabled' : ''}>◀</button>
           <span class="cc-equip-current">${idx + 1}/${info.variants.length}</span>

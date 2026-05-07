@@ -8,6 +8,16 @@
 
 import { SLOT_PATTERNS, WEAPON_SLOTS, SHIELD_SLOTS, ARMOR_SLOTS } from './GrudgeFactionRegistry.js';
 
+// Derive tier from variant letter — mirrors the CSV Tier column:
+// A/B = light/cloth, C/D/E = medium/leather, F/G/H+ = heavy/plate
+const TIER_LETTERS = 'ABCDEFGHIJKLMNOP';
+function _variantTier(v) {
+  const i = v ? TIER_LETTERS.indexOf(v.toUpperCase()) : 0;
+  if (i <= 1) return 'cloth';
+  if (i <= 4) return 'leather';
+  return 'plate';
+}
+
 export class GrudgeEquipmentManager {
   /**
    * @param {string} prefix - e.g. 'WK_', 'BRB_', 'ELF_', 'DWF_', 'ORC_', 'UD_'
@@ -45,8 +55,9 @@ export class GrudgeEquipmentManager {
           const variant =
             match[match.length - 1] && /^[A-Z]$/i.test(match[match.length - 1])
               ? match[match.length - 1].toUpperCase()
-              : "default";
-          this.slots[slotName].push({ variant, mesh });
+              : 'A'; // single-variant items (spear, bow, dagger, etc.) use 'A'
+          const tier = _variantTier(variant);
+          this.slots[slotName].push({ variant, tier, mesh });
           this._catalogedMeshes.add(mesh);
           // Start with everything hidden
           mesh.isVisible = false;
@@ -99,7 +110,7 @@ export class GrudgeEquipmentManager {
     const entries = this.slots[weaponType];
     if (!entries) return;
     for (const entry of entries) {
-      if (entry.variant === variant || entry.variant === 'default') {
+      if (entry.variant === variant) {
         entry.mesh.isVisible = true;
         break;
       }
@@ -184,9 +195,13 @@ export class GrudgeEquipmentManager {
   getSummary() {
     const out = {};
     for (const [slot, entries] of Object.entries(this.slots)) {
+      const equippedVariant = this.equipped[slot] || null;
+      const equippedEntry = entries.find(e => e.variant === equippedVariant);
       out[slot] = {
         variants: entries.map(e => e.variant),
-        equipped: this.equipped[slot] || null,
+        tiers:    entries.map(e => e.tier),
+        equipped: equippedVariant,
+        equippedTier: equippedEntry?.tier || null,
       };
     }
     return out;

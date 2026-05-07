@@ -235,16 +235,17 @@ export const SLOT_PATTERNS = {
   mace:       /weapon_mace(?:_([A-C]))?$/i,
   pick:       /weapon_pick/i,
   spear:      /weapon_spear/i,
+  lance:      /weapon_lance/i,
   bow:        /weapon_bow/i,
-  staff:      /weapon_staff_([A-D])/i,
+  staff:      /weapon_staff(?:_([A-D]))?$/i,
   dagger:     /weapon_dagger/i,
-  shield:     /Shield_([A-D])/i,
+  shield:     /[Ss]hield_([A-D])/i,
   bag:        /Xtra_bag/i,
   wood:       /Xtra_wood/i,
   quiver:     /Xtra_quiver/i,
 };
 
-export const WEAPON_SLOTS = new Set(['sword', 'axe', 'hammer', 'mace', 'pick', 'spear', 'bow', 'staff', 'dagger']);
+export const WEAPON_SLOTS = new Set(['sword', 'axe', 'hammer', 'mace', 'pick', 'spear', 'lance', 'bow', 'staff', 'dagger']);
 export const SHIELD_SLOTS = new Set(['shield']);
 export const ARMOR_SLOTS  = new Set(['body', 'arms', 'legs', 'head', 'shoulders']);
 
