@@ -38,7 +38,8 @@ function _loadTexture(scene, url, useSRGB) {
   });
 }
 
-// ── Visible-mesh-only bounding box (skip hidden equipment) ──────────────────
+// ── Visible BODY-only bounding box (skip weapons/shields — they attach to
+// hand bones far from centre and completely break the height calculation) ──────
 function _visibleBounds(meshes) {
   let minX = Infinity, minY = Infinity, minZ = Infinity;
   let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
@@ -46,6 +47,10 @@ function _visibleBounds(meshes) {
   for (const mesh of meshes) {
     if (!mesh.isVisible) continue;
     if (!mesh.getTotalVertices || mesh.getTotalVertices() <= 0) continue;
+    // Skip weapons and shields — they sit at hand-bone world positions and
+    // inflate the bounding box, producing a wildly wrong scale factor.
+    const n = (mesh.name || '').toLowerCase();
+    if (n.includes('weapon') || n.includes('shield') || n.includes('xtra')) continue;
     const bi = mesh.getBoundingInfo && mesh.getBoundingInfo();
     if (!bi || !bi.boundingBox) continue;
     const mn = bi.boundingBox.minimumWorld;

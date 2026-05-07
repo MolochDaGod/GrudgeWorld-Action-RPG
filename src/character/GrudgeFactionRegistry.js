@@ -354,35 +354,43 @@ export const CLASS_BUILDS = {
  * vs robes), not just material swaps.
  */
 export const ARMOR_PRESETS = {
+  // Variant letters come directly from GLB mesh names (dump-meshes.mjs verified).
+  // A = lightest/cloth, highest letter = heaviest/plate for each race.
   human: {
-    cloth:   { body: 'E', arms: 'D', legs: 'C', shoulders: 'B' },
+    // body A-E | arms A-D | legs A-C | shoulders A-B
+    cloth:   { body: 'A', arms: 'A', legs: 'A', shoulders: null },
     leather: { body: 'C', arms: 'B', legs: 'B', shoulders: 'A' },
-    metal:   { body: 'B', arms: 'A', legs: 'A', shoulders: null },
+    metal:   { body: 'E', arms: 'D', legs: 'C', shoulders: 'B' },
   },
   barbarian: {
-    cloth:   { body: 'H', arms: 'C', legs: 'C', shoulders: 'C' },
+    // body A-H | arms A-C | legs A-C | shoulders A-C
+    cloth:   { body: 'A', arms: 'A', legs: 'A', shoulders: null },
     leather: { body: 'D', arms: 'B', legs: 'B', shoulders: 'B' },
-    metal:   { body: 'B', arms: 'A', legs: 'A', shoulders: null },
+    metal:   { body: 'H', arms: 'C', legs: 'C', shoulders: 'C' },
   },
   elf: {
-    cloth:   { body: 'F', arms: 'C', legs: 'C', shoulders: 'C' },
-    leather: { body: 'C', arms: 'B', legs: 'B', shoulders: 'B' },
-    metal:   { body: 'B', arms: 'A', legs: 'A', shoulders: null },
+    // body A-F | arms A-C | legs A-C | shoulders A-C
+    cloth:   { body: 'A', arms: 'A', legs: 'A', shoulders: null },
+    leather: { body: 'C', arms: 'B', legs: 'B', shoulders: 'A' },
+    metal:   { body: 'F', arms: 'C', legs: 'C', shoulders: 'C' },
   },
   dwarf: {
-    cloth:   { body: 'E', arms: 'C', legs: 'C', shoulders: 'C' },
-    leather: { body: 'C', arms: 'B', legs: 'B', shoulders: 'B' },
-    metal:   { body: 'B', arms: 'A', legs: 'A', shoulders: null },
+    // body A-E | arms A-C | legs A-C | shoulders A-C
+    cloth:   { body: 'A', arms: 'A', legs: 'A', shoulders: null },
+    leather: { body: 'C', arms: 'B', legs: 'B', shoulders: 'A' },
+    metal:   { body: 'E', arms: 'C', legs: 'C', shoulders: 'C' },
   },
   orc: {
-    cloth:   { body: 'G', arms: 'C', legs: 'D', shoulders: 'F' },
-    leather: { body: 'D', arms: 'B', legs: 'B', shoulders: 'C' },
-    metal:   { body: 'B', arms: 'A', legs: 'A', shoulders: null },
+    // body A-G | arms A-C | legs A-D | shoulders A-F
+    cloth:   { body: 'A', arms: 'A', legs: 'A', shoulders: null },
+    leather: { body: 'C', arms: 'B', legs: 'B', shoulders: 'B' },
+    metal:   { body: 'G', arms: 'C', legs: 'D', shoulders: 'F' },
   },
   undead: {
-    cloth:   { body: 'G', arms: 'E', legs: 'D', shoulders: 'C' },
-    leather: { body: 'D', arms: 'C', legs: 'B', shoulders: 'B' },
-    metal:   { body: 'B', arms: 'A', legs: 'A', shoulders: null },
+    // body A-G | arms A-E | legs A-D | shoulders A-C
+    cloth:   { body: 'A', arms: 'A', legs: 'A', shoulders: null },
+    leather: { body: 'C', arms: 'C', legs: 'B', shoulders: 'A' },
+    metal:   { body: 'G', arms: 'E', legs: 'D', shoulders: 'C' },
   },
 };
 
