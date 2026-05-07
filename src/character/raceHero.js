@@ -192,7 +192,7 @@ export async function loadRaceCharacter(scene, raceId, parent, options = {}) {
 
   // Apply class-specific equipment build (weapon, shield, head preference)
   const starterPreset = preset || _classPreset(raceId, classId);
-  equipManager.applyPreset(starterPreset);
+  equipManager.applyPreset(starterPreset, armorType);
 
   // Debug: log which meshes are now visible after preset
   if (DEBUG) {
@@ -300,7 +300,7 @@ class RaceCharacter {
 
     // 2. Switch to the correct armor MESH variants (different geometry per armor type)
     const preset = _classPreset(this.raceId, newClassId);
-    this.equipManager.applyPreset(preset);
+    this.equipManager.applyPreset(preset, armorType);
 
     console.log(`[raceHero] Class build: ${newClassId} (${armorType}) — body:${preset.body} arms:${preset.arms} legs:${preset.legs}`);
   }

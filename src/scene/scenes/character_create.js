@@ -337,7 +337,7 @@ export async function createCharacterCreate(engine) {
     const allowed = new Set(classData?.weaponTypes || ['sword','axe','hammer','bow','staff','spear']);
     const ICONS = { body:'👕', arms:'🧤', legs:'👖', head:'⛑', shoulders:'🦺', sword:'⚔', axe:'🪓', hammer:'🔨', bow:'🏹', staff:'🪄', shield:'🛡', spear:'🗡', lance:'🏇', mace:'🪃', pick:'⛏', dagger:'🗡', bag:'👜', wood:'🪵', quiver:'🏹' };
     const LABELS = { body:'Body', arms:'Arms', legs:'Legs', head:'Helmet', shoulders:'Shoulders', sword:'Sword', axe:'Axe', hammer:'Hammer', mace:'Mace', pick:'Pick', bow:'Bow', staff:'Staff', spear:'Spear', lance:'Lance', dagger:'Dagger', shield:'Shield', bag:'Bag', wood:'Wood', quiver:'Quiver' };
-    const TIER_LABEL = { cloth:'Cloth', leather:'Leather', plate:'Plate' };
+    const TIER_LABEL = { cloth:'Cloth', leather:'Leather', metal:'Plate', plate:'Plate' };
 
     let h = '<div class="cc-equip-grid">';
     for (const [slot, info] of Object.entries(summary)) {

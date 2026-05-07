@@ -8,16 +8,6 @@
 
 import { SLOT_PATTERNS, WEAPON_SLOTS, SHIELD_SLOTS, ARMOR_SLOTS } from './GrudgeFactionRegistry.js';
 
-// Derive tier from variant letter — mirrors the CSV Tier column:
-// A/B = light/cloth, C/D/E = medium/leather, F/G/H+ = heavy/plate
-const TIER_LETTERS = 'ABCDEFGHIJKLMNOP';
-function _variantTier(v) {
-  const i = v ? TIER_LETTERS.indexOf(v.toUpperCase()) : 0;
-  if (i <= 1) return 'cloth';
-  if (i <= 4) return 'leather';
-  return 'plate';
-}
-
 export class GrudgeEquipmentManager {
   /**
    * @param {string} prefix - e.g. 'WK_', 'BRB_', 'ELF_', 'DWF_', 'ORC_', 'UD_'
@@ -28,6 +18,8 @@ export class GrudgeEquipmentManager {
     this.slots = {};
     // Currently equipped variant per slot
     this.equipped = {};
+    // Armor type last applied via applyPreset ('cloth'|'leather'|'metal')
+    this._armorType = null;
     this._root = null;
   }
 
@@ -56,8 +48,7 @@ export class GrudgeEquipmentManager {
             match[match.length - 1] && /^[A-Z]$/i.test(match[match.length - 1])
               ? match[match.length - 1].toUpperCase()
               : 'A'; // single-variant items (spear, bow, dagger, etc.) use 'A'
-          const tier = _variantTier(variant);
-          this.slots[slotName].push({ variant, tier, mesh });
+          this.slots[slotName].push({ variant, mesh });
           this._catalogedMeshes.add(mesh);
           // Start with everything hidden
           mesh.isVisible = false;
@@ -146,8 +137,10 @@ export class GrudgeEquipmentManager {
   /**
    * Apply a full equipment preset from a plain object.
    * @param {Object} preset - e.g. { body:'B', head:'C', weapon:{type:'sword',variant:'A'}, shield:'B' }
+   * @param {string} [armorType] - 'cloth'|'leather'|'metal' — stored for getSummary() tier label
    */
-  applyPreset(preset) {
+  applyPreset(preset, armorType) {
+    if (armorType) this._armorType = armorType;
     if (preset.body)      this.equip('body',      preset.body);
     if (preset.arms)      this.equip('arms',      preset.arms);
     if (preset.legs)      this.equip('legs',      preset.legs);
@@ -196,12 +189,11 @@ export class GrudgeEquipmentManager {
     const out = {};
     for (const [slot, entries] of Object.entries(this.slots)) {
       const equippedVariant = this.equipped[slot] || null;
-      const equippedEntry = entries.find(e => e.variant === equippedVariant);
       out[slot] = {
         variants: entries.map(e => e.variant),
-        tiers:    entries.map(e => e.tier),
         equipped: equippedVariant,
-        equippedTier: equippedEntry?.tier || null,
+        // armorType set by applyPreset — reliable for all races regardless of letter position
+        equippedTier: ARMOR_SLOTS.has(slot) ? this._armorType : null,
       };
     }
     return out;
