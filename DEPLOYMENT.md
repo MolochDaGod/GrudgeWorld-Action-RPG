@@ -11,6 +11,7 @@
 Render static site — auto-deploys from `main` branch in ~2 minutes. No build step.
 
 ```
+node scripts/check-race-assets.mjs  →  validates all 6 race GLBs before deploy
 git push origin main  →  Render detects change  →  serves static files from repo root
 ```
 

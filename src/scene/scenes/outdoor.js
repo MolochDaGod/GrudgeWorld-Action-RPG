@@ -113,13 +113,34 @@ export async function createOutdoor(engine) {
   setupShadows(light, hero);
   setupPostProcessing(scene, camera);
 
-  loadHPModels(scene, engine, models["HPBar"]);
+    if (models["HPBar"]) {
+      loadHPModels(scene, engine, models["HPBar"]);
+    } else {
+      console.warn("[outdoor] HPBar model missing; HP 3D widget disabled.");
+    }
 
-  let sword = addSword(scene, models["Sword2"]);
-  createTrail(scene, engine, sword, 0.2, 40, new BABYLON.Vector3(0, 0, 0.32));
+    if (models["Sword2"]) {
+      const sword = addSword(scene, models["Sword2"]);
+      if (sword) {
+        createTrail(
+          scene,
+          engine,
+          sword,
+          0.2,
+          40,
+          new BABYLON.Vector3(0, 0, 0.32),
+        );
+      }
+    } else {
+      console.warn("[outdoor] Sword2 model missing; weapon trail disabled.");
+    }
 
-  const slime1 = models["Slime1"];
-  setupEnemies(scene, character, terrain, 7, slime1);
+    const slime1 = models["Slime1"];
+    if (slime1) {
+      setupEnemies(scene, character, terrain, 7, slime1);
+    } else {
+      console.warn("[outdoor] Slime1 model missing; enemy spawn skipped.");
+    }
 
   VFX["fireBall"] = addFireball(scene, engine);
 

@@ -1,10 +1,17 @@
 export async function loadModels(scene, urls) {
-    const loadModelPromises = urls.map(url => loadModel(scene, url)); // Create an array of promises
-    const modelsArray = await Promise.all(loadModelPromises); // Await all promises in parallel
-    const modelsDict = modelsArray.reduce((acc, result, index) => {
-        let selector = urls[index].split("/").pop().replace('.glb', '');
-        acc[selector] = result.meshes[0]; // Store the first mesh in the dictionary with the URL as key
-        return acc;
+    const loadModelPromises = urls.map((url) => loadModel(scene, url));
+    const results = await Promise.allSettled(loadModelPromises);
+    const modelsDict = results.reduce((acc, result, index) => {
+      const selector = urls[index].split("/").pop().replace(".glb", "");
+      if (result.status === "fulfilled" && result.value?.meshes?.[0]) {
+        acc[selector] = result.value.meshes[0];
+      } else {
+        console.warn(
+          `[loadModels] Failed to load ${urls[index]} — continuing without it.`,
+        );
+        acc[selector] = null;
+      }
+      return acc;
     }, {});
     return modelsDict; // Return the dictionary containing all the models
 }

@@ -44,17 +44,35 @@ export async function loadRaceCharacter(scene, raceId, parent, options = {}) {
   }
 
   const root = result.meshes[0];
+  const prefab = faction.prefab || {};
 
   // Parent to character movement node
   if (parent) {
     root.parent = parent;
   }
 
-  // GLB scale: FBX2glTF bakes cm→m conversion and Bip001 has scale 2.54 inside.
-  // The root needs ~0.4 to match the game world scale (was 0.018 for raw FBX).
-  root.scaling.scaleInPlace(0.4);
-  root.position.y = -1.1;
-  root.rotation.y = Math.PI; // face forward
+  const bounds = _computeMeshBounds(result.meshes);
+  const rawHeight = Math.max(0.001, bounds.max.y - bounds.min.y);
+  const targetHeight = Math.max(0.2, prefab.targetHeight || 1.85);
+  const normalizeScale = targetHeight / rawHeight;
+
+  root.scaling.scaleInPlace(normalizeScale);
+  root.position.y = typeof prefab.groundOffset === 'number' ? prefab.groundOffset : -1.1;
+
+  // GLB models are Y-up. Bip001 FBX-origin skeletons may arrive with the
+  // character facing -Z; yaw π flips to face the camera. If the model
+  // appears upside-down, the FBX→GLB conversion baked a Z-up → Y-up
+  // rotation into the root — detect this by checking if the bbox center
+  // is below origin (feet above head) and correct with an X flip.
+  const bboxCenter = (bounds.min.y + bounds.max.y) / 2;
+  if (bboxCenter < -0.1 && bounds.min.y < -rawHeight * 0.4) {
+    // Model is inverted — flip upright
+    root.rotation.x = Math.PI;
+    root.rotation.y = 0;
+    console.warn(`[raceHero] ${raceId} model detected upside-down, applying X-flip correction`);
+  } else {
+    root.rotation.y = typeof prefab.yaw === 'number' ? prefab.yaw : Math.PI;
+  }
 
   // Fix materials and disable camera collision on all submeshes
   const _fallbackMat = new BABYLON.PBRMaterial(`${raceId}_fallback`, scene);
@@ -67,6 +85,16 @@ export async function loadRaceCharacter(scene, raceId, parent, options = {}) {
     if (m.material) {
       try { m.material.transparencyMode = BABYLON.Material.MATERIAL_OPAQUE; }
       catch (_) { /* ignore */ }
+
+      if (_isPlaceholderTextureMaterial(m.material)) {
+        const tint = prefab.materialTint || [0.92, 0.90, 0.88];
+        if (m.material instanceof BABYLON.PBRMaterial) {
+          m.material.albedoColor = new BABYLON.Color3(tint[0], tint[1], tint[2]);
+          m.material.metallic = 0.0;
+          m.material.roughness = 0.95;
+          m.material.emissiveColor = BABYLON.Color3.Black();
+        }
+      }
     } else if (m.getTotalVertices && m.getTotalVertices() > 0) {
       // Mesh has geometry but no material — assign fallback
       m.material = _fallbackMat;
@@ -75,12 +103,16 @@ export async function loadRaceCharacter(scene, raceId, parent, options = {}) {
 
   // ── 2. Skeleton / root-motion suppression ──────────────────────────────────
   const skeleton = result.skeletons[0] || null;
+  let rootMotionObserver = null;
   if (skeleton) {
     for (const bone of skeleton.bones) {
       if (bone.name === 'Bip001' || bone.name === 'RootNode') {
         // Lock root bone translation to prevent root-motion drift
-        scene.onBeforeRenderObservable.add(() => {
-          bone.position = BABYLON.Vector3.Zero();
+        rootMotionObserver = scene.onBeforeRenderObservable.add(() => {
+          bone.position.copyFromFloats(0, 0, 0);
+          if (bone.rotationQuaternion) {
+            bone.rotationQuaternion.copyFrom(BABYLON.Quaternion.Identity());
+          }
         });
         break;
       }
@@ -94,16 +126,6 @@ export async function loadRaceCharacter(scene, raceId, parent, options = {}) {
   // Apply default starter preset or caller-supplied preset
   const starterPreset = preset || _defaultPreset(raceId);
   equipManager.applyPreset(starterPreset);
-
-  // ── 3b. Ensure ONLY equipped meshes are visible (catch-all) ────────────────
-  // Some FBX child meshes aren't caught by slot patterns (bone helpers, extra geo).
-  // Hide anything the EquipmentManager didn't catalog, except root transform.
-  for (const m of result.meshes) {
-    if (m === root) continue;  // root transform node stays
-    if (!equipManager._catalogedMeshes?.has(m)) {
-      m.isVisible = false;
-    }
-  }
 
   // ── 4. Animation system ────────────────────────────────────────────────────
   const mixer = new BABYLON.AnimationGroup('empty', scene);
@@ -120,7 +142,7 @@ export async function loadRaceCharacter(scene, raceId, parent, options = {}) {
   // ── 5. Build RaceCharacter handle ──────────────────────────────────────────
   const raceChar = new RaceCharacter({
     raceId, faction, root, skeleton, result,
-    equipManager, animActions, scene,
+    equipManager, animActions, scene, rootMotionObserver,
   });
 
   // Start idle immediately
@@ -132,7 +154,7 @@ export async function loadRaceCharacter(scene, raceId, parent, options = {}) {
 // ─── RaceCharacter ────────────────────────────────────────────────────────────
 
 class RaceCharacter {
-  constructor({ raceId, faction, root, skeleton, result, equipManager, animActions, scene }) {
+  constructor({ raceId, faction, root, skeleton, result, equipManager, animActions, scene, rootMotionObserver }) {
     this.raceId       = raceId;
     this.faction      = faction;
     this.root         = root;
@@ -142,6 +164,7 @@ class RaceCharacter {
     this._animActions = animActions;
     this._scene       = scene;
     this._currentAnim = null;
+    this._rootMotionObserver = rootMotionObserver;
   }
 
   /**
@@ -194,6 +217,10 @@ class RaceCharacter {
   /** Remove from scene */
   dispose() {
     this.stopAnims();
+    if (this._rootMotionObserver) {
+      this._scene.onBeforeRenderObservable.remove(this._rootMotionObserver);
+      this._rootMotionObserver = null;
+    }
     for (const mesh of this.result.meshes) {
       mesh.dispose();
     }
@@ -262,4 +289,44 @@ function _defaultPreset(raceId) {
     undead:    { body: 'B', arms: 'A', legs: 'A', head: 'F', weapon: { type: 'staff',  variant: 'A' } },
   };
   return presets[raceId] || {};
+}
+
+function _computeMeshBounds(meshes) {
+  let minX = Infinity, minY = Infinity, minZ = Infinity;
+  let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+
+  for (const mesh of meshes) {
+    if (!mesh.getTotalVertices || mesh.getTotalVertices() <= 0) continue;
+    const bi = mesh.getBoundingInfo && mesh.getBoundingInfo();
+    if (!bi || !bi.boundingBox) continue;
+    const mn = bi.boundingBox.minimumWorld;
+    const mx = bi.boundingBox.maximumWorld;
+    minX = Math.min(minX, mn.x);
+    minY = Math.min(minY, mn.y);
+    minZ = Math.min(minZ, mn.z);
+    maxX = Math.max(maxX, mx.x);
+    maxY = Math.max(maxY, mx.y);
+    maxZ = Math.max(maxZ, mx.z);
+  }
+
+  if (!Number.isFinite(minX)) {
+    return {
+      min: BABYLON.Vector3.Zero(),
+      max: new BABYLON.Vector3(1, 1, 1),
+    };
+  }
+
+  return {
+    min: new BABYLON.Vector3(minX, minY, minZ),
+    max: new BABYLON.Vector3(maxX, maxY, maxZ),
+  };
+}
+
+function _isPlaceholderTextureMaterial(material) {
+  if (!(material instanceof BABYLON.PBRMaterial)) return false;
+  const tex = material.albedoTexture;
+  if (!tex || !tex.getSize) return false;
+  const size = tex.getSize();
+  if (!size) return false;
+  return size.width <= 2 && size.height <= 2;
 }

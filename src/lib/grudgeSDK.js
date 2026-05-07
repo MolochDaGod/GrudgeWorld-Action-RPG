@@ -9,63 +9,170 @@
  *   - https://api.grudge-studio.com                             (Game API backend)
  *
  * In-memory cache with 5-minute TTL. Graceful fallback if offline.
+ *
+ * Primary endpoint: Cloudflare R2 CDN (assets.grudge-studio.com/api/v1)
+ * D1 Worker:        objectstore.grudge-studio.com
+ * Fallback:         molochdagod.github.io/ObjectStore/api/v1 (GitHub Pages)
  */
 
 // ── Endpoints ────────────────────────────────────────────────────────────────
 
-const OBJECTSTORE_API = 'https://molochdagod.github.io/ObjectStore/api/v1';
+const OBJECTSTORE_API = 'https://assets.grudge-studio.com/api/v1';
 const ASSETS_CDN      = 'https://assets.grudge-studio.com';
 const WORKER_API      = 'https://objectstore.grudge-studio.com';
 const GAME_API        = 'https://api.grudge-studio.com';
 const INFO_HUB        = 'https://info.grudge-studio.com';
 const CRAFTING_APP    = 'https://grudge-crafting.puter.site';
+const REQUEST_TIMEOUT_MS = 8000;
+const MAX_FETCH_RETRIES = 2;
+
+const CORE_FALLBACK = {
+  races: {
+    human: { id: 'human', name: 'Human', faction: 'crusade', bonuses: { Strength: 2, Vitality: 2 } },
+    barbarian: { id: 'barbarian', name: 'Barbarian', faction: 'crusade', bonuses: { Strength: 3, Endurance: 2 } },
+    elf: { id: 'elf', name: 'Elf', faction: 'fabled', bonuses: { Dexterity: 3, Wisdom: 1 } },
+    dwarf: { id: 'dwarf', name: 'Dwarf', faction: 'fabled', bonuses: { Vitality: 3, Strength: 1 } },
+    orc: { id: 'orc', name: 'Orc', faction: 'legion', bonuses: { Strength: 3, Endurance: 3 } },
+    undead: { id: 'undead', name: 'Undead', faction: 'legion', bonuses: { Intellect: 2, Endurance: 3 } },
+  },
+  classes: {
+    warrior: {
+      id: 'warrior', name: 'Warrior', emoji: '⚔',
+      description: 'Frontline melee combatant.',
+      weaponTypes: ['sword', 'axe', 'hammer', 'spear', 'shield'],
+      startingAttributes: { Strength: 3, Vitality: 2, Endurance: 2 },
+    },
+    ranger: {
+      id: 'ranger', name: 'Ranger', emoji: '🏹',
+      description: 'Mobile ranged specialist.',
+      weaponTypes: ['bow', 'spear'],
+      startingAttributes: { Dexterity: 3, Agility: 2, Wisdom: 1 },
+    },
+    mage: {
+      id: 'mage', name: 'Mage', emoji: '🔮',
+      description: 'Arcane caster with burst damage.',
+      weaponTypes: ['staff'],
+      startingAttributes: { Intellect: 3, Wisdom: 2, Tactics: 1 },
+    },
+    worge: {
+      id: 'worge', name: 'Worge', emoji: '🐺',
+      description: 'Ferocious shapeshifting bruiser.',
+      weaponTypes: ['sword', 'axe', 'hammer'],
+      startingAttributes: { Strength: 2, Agility: 2, Endurance: 2 },
+    },
+  },
+  factions: {
+    crusade: { id: 'crusade', name: 'Crusade' },
+    fabled: { id: 'fabled', name: 'Fabled' },
+    legion: { id: 'legion', name: 'Legion' },
+  },
+  attributes: {
+    Strength: { id: 'Strength', name: 'Strength' },
+    Intellect: { id: 'Intellect', name: 'Intellect' },
+    Vitality: { id: 'Vitality', name: 'Vitality' },
+    Dexterity: { id: 'Dexterity', name: 'Dexterity' },
+    Endurance: { id: 'Endurance', name: 'Endurance' },
+    Wisdom: { id: 'Wisdom', name: 'Wisdom' },
+    Agility: { id: 'Agility', name: 'Agility' },
+    Tactics: { id: 'Tactics', name: 'Tactics' },
+  },
+};
 
 // ── Cache ────────────────────────────────────────────────────────────────────
 
 const _cache = {};
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-async function _cachedFetch(key, url) {
+async function _fetchJsonWithTimeout(url, timeoutMs = REQUEST_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function _getCoreFallback(key) {
+  switch (key) {
+    case 'races': return { races: CORE_FALLBACK.races };
+    case 'classes': return { classes: CORE_FALLBACK.classes };
+    case 'factions': return { factions: CORE_FALLBACK.factions };
+    case 'attributes': return { attributes: CORE_FALLBACK.attributes };
+    default: return null;
+  }
+}
+
+async function _cachedFetch(key, url, opts = {}) {
+  const { fallback = null } = opts;
   const now = Date.now();
   if (_cache[key] && (now - _cache[key].ts) < CACHE_TTL) {
     return _cache[key].data;
   }
-  try {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    _cache[key] = { data, ts: now };
-    return data;
-  } catch (err) {
-    console.warn(`[GrudgeSDK] Fetch failed for ${key}:`, err.message);
-    // Return stale cache if available
-    if (_cache[key]) return _cache[key].data;
-    return null;
+
+  let lastErr = null;
+  for (let attempt = 1; attempt <= MAX_FETCH_RETRIES; attempt++) {
+    try {
+      const data = await _fetchJsonWithTimeout(url);
+      _cache[key] = { data, ts: now };
+      return data;
+    } catch (err) {
+      lastErr = err;
+      if (attempt < MAX_FETCH_RETRIES) {
+        await new Promise((r) => setTimeout(r, attempt * 250));
+      }
+    }
   }
+
+  console.warn(`[GrudgeSDK] Fetch failed for ${key} after ${MAX_FETCH_RETRIES} attempts:`, lastErr?.message || 'unknown error');
+  if (_cache[key]) return _cache[key].data;
+  return fallback;
 }
 
-// ── Public API ───────────────────────────────────────────────────────────────
+function _mergeMaps(fallback, remote) {
+  return { ...(fallback || {}), ...(remote || {}) };
+}
+
+function _safeMap(apiData, key) {
+  const remoteMap = apiData?.[key] || apiData || {};
+  return _mergeMaps(CORE_FALLBACK[key], remoteMap);
+}
+
+function _safeList(apiData) {
+  if (Array.isArray(apiData)) return apiData;
+  if (!apiData || typeof apiData !== 'object') return [];
+  return Object.values(apiData);
+}
+
+function _safeObject(apiData) {
+  if (!apiData || typeof apiData !== 'object') return {};
+  return apiData;
+}
+
+// ── Public API
 
 export const GrudgeSDK = {
 
   /** Fetch all 6 races with factions, bonuses, lore */
   async fetchRaces() {
-    return _cachedFetch('races', `${OBJECTSTORE_API}/races.json`);
+    return _cachedFetch('races', `${OBJECTSTORE_API}/races.json`, { fallback: _getCoreFallback('races') });
   },
 
   /** Fetch all 4 classes with abilities, weapon types, starting attrs */
   async fetchClasses() {
-    return _cachedFetch('classes', `${OBJECTSTORE_API}/classes.json`);
+    return _cachedFetch('classes', `${OBJECTSTORE_API}/classes.json`, { fallback: _getCoreFallback('classes') });
   },
 
   /** Fetch 8 attribute definitions (Strength, Intellect, etc.) */
   async fetchAttributes() {
-    return _cachedFetch('attributes', `${OBJECTSTORE_API}/attributes.json`);
+    return _cachedFetch('attributes', `${OBJECTSTORE_API}/attributes.json`, { fallback: _getCoreFallback('attributes') });
   },
 
   /** Fetch faction data (Crusade, Legion, Fabled) */
   async fetchFactions() {
-    return _cachedFetch('factions', `${OBJECTSTORE_API}/factions.json`);
+    return _cachedFetch('factions', `${OBJECTSTORE_API}/factions.json`, { fallback: _getCoreFallback('factions') });
   },
 
   /** Fetch weapon data */
@@ -150,10 +257,10 @@ export const GrudgeSDK = {
       factions.status === 'fulfilled' ? 'factions ✓' : 'factions ✗',
     );
     return {
-      races: races.value ?? null,
-      classes: classes.value ?? null,
-      attributes: attrs.value ?? null,
-      factions: factions.value ?? null,
+      races: races.value ?? _getCoreFallback('races'),
+      classes: classes.value ?? _getCoreFallback('classes'),
+      attributes: attrs.value ?? _getCoreFallback('attributes'),
+      factions: factions.value ?? _getCoreFallback('factions'),
     };
   },
 
@@ -161,27 +268,36 @@ export const GrudgeSDK = {
 
   /** Get race map from API response: { human: {...}, elf: {...}, ... } */
   getRacesMap(apiData) {
-    return apiData?.races || {};
+    return _safeMap(apiData, 'races');
   },
 
   /** Get classes map from API response: { warrior: {...}, mage: {...}, ... } */
   getClassesMap(apiData) {
-    return apiData?.classes || {};
+    return _safeMap(apiData, 'classes');
   },
 
   /** Get factions map from API response: { crusade: {...}, ... } */
   getFactionsMap(apiData) {
-    return apiData?.factions || {};
+    return _safeMap(apiData, 'factions');
   },
 
   /** Get abilities array for a class from API response */
   getClassAbilities(classData) {
-    return classData?.abilities || [];
+    return _safeList(classData?.abilities);
   },
 
   /** Get weapon types allowed for a class */
   getClassWeaponTypes(classData) {
-    return classData?.weaponTypes || [];
+    return _safeList(classData?.weaponTypes);
+  },
+
+  getCoreFallback() {
+    return {
+      races: _getCoreFallback('races'),
+      classes: _getCoreFallback('classes'),
+      attributes: _getCoreFallback('attributes'),
+      factions: _getCoreFallback('factions'),
+    };
   },
 };
 

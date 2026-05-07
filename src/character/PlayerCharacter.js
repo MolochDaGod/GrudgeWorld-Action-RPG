@@ -15,13 +15,20 @@
  * fallback if the race GLB fails to load.
  */
 
-import { loadRaceCharacter } from './raceHero.js';
-import { loadHeroModel } from './hero.js';
-import { FACTIONS } from './GrudgeFactionRegistry.js';
+import { loadRaceCharacter } from "./raceHero.js";
+import { FACTIONS } from "./GrudgeFactionRegistry.js";
 
 // Null animation stub — prevents crashes when an anim key is missing
 function _nullAnim() {
-  return { start(){}, stop(){}, play(){}, isPlaying: false, from: 0, to: 0, setWeightForAllAnimatables(){} };
+  return {
+    start() {},
+    stop() {},
+    play() {},
+    isPlaying: false,
+    from: 0,
+    to: 0,
+    setWeightForAllAnimatables() {},
+  };
 }
 
 /**
@@ -34,10 +41,16 @@ function _nullAnim() {
  * @returns {Promise<PlayerCharacterHandle>}
  */
 export async function loadPlayerCharacter(scene, parentNode, opts = {}) {
-  const selectedRace = (typeof CHAR_SELECT !== 'undefined' && CHAR_SELECT.race) || 'human';
-  const selectedEquip = (typeof CHAR_SELECT !== 'undefined' && CHAR_SELECT.equip) || null;
+  const requestedRace =
+    (typeof CHAR_SELECT !== "undefined" && CHAR_SELECT.race) || "human";
+  const selectedRace = FACTIONS[requestedRace] ? requestedRace : "human";
+  const selectedEquip =
+    (typeof CHAR_SELECT !== "undefined" && CHAR_SELECT.equip) || null;
 
-  let hero, skeleton, raceChar, useRaceChar = false;
+  let hero,
+    skeleton,
+    raceChar,
+    useRaceChar = false;
 
   // ── Try loading the race character GLB ──────────────────────────────────────
   try {
@@ -50,10 +63,35 @@ export async function loadPlayerCharacter(scene, parentNode, opts = {}) {
     useRaceChar = true;
     console.log(`[PlayerCharacter] Race character loaded: ${selectedRace}`);
   } catch (err) {
-    console.warn('[PlayerCharacter] Race GLB failed, falling back to HumanBaseMesh:', err.message);
-    const heroModel = await loadHeroModel(scene, parentNode);
-    hero = heroModel.hero;
-    skeleton = heroModel.skeleton;
+    console.warn(
+      "[PlayerCharacter] Selected race failed, retrying with Human race:",
+      err.message,
+    );
+    try {
+      raceChar = await loadRaceCharacter(scene, "human", parentNode, {
+        loadAnims: opts.loadAnims !== false,
+      });
+      hero = raceChar.root;
+      skeleton = raceChar.skeleton;
+      useRaceChar = true;
+    } catch (fallbackErr) {
+      console.error(
+        "[PlayerCharacter] Human race fallback failed:",
+        fallbackErr,
+      );
+      // Last-resort placeholder so gameplay remains functional.
+      hero = BABYLON.MeshBuilder.CreateCapsule(
+        "playerFallbackCapsule",
+        { radius: 0.25, height: 1.75 },
+        scene,
+      );
+      if (parentNode) hero.parent = parentNode;
+      hero.position.y = -0.9;
+      const mat = new BABYLON.StandardMaterial("playerFallbackMat", scene);
+      mat.diffuseColor = new BABYLON.Color3(0.75, 0.75, 0.8);
+      hero.material = mat;
+      skeleton = null;
+    }
   }
 
   // ── Build animation bridge ──────────────────────────────────────────────────
@@ -63,18 +101,19 @@ export async function loadPlayerCharacter(scene, parentNode, opts = {}) {
   if (useRaceChar && raceChar._animActions) {
     const ra = raceChar._animActions;
     anim = {
-      BreathingIdle: ra.idle       || ra.combatIdle || _nullAnim(),
-      Running:       ra.combatRun  || _nullAnim(),
-      Jump:          ra.idle       || _nullAnim(),
-      Roll:          ra.hit        || _nullAnim(),
-      SelfCast:      ra.attack3    || _nullAnim(),
-      Combo:         ra.attack2    || _nullAnim(),
-      Attack:        ra.attack1    || _nullAnim(),
-      Block:         ra.block      || _nullAnim(),
+      BreathingIdle: ra.idle || ra.combatIdle || _nullAnim(),
+      Running: ra.combatRun || _nullAnim(),
+      Jump: ra.idle || _nullAnim(),
+      Roll: ra.hit || _nullAnim(),
+      SelfCast: ra.attack3 || _nullAnim(),
+      Combo: ra.attack2 || _nullAnim(),
+      Attack: ra.attack1 || _nullAnim(),
+      Block: ra.block || _nullAnim(),
     };
 
     // Enable blending
-    scene.animationPropertiesOverride = new BABYLON.AnimationPropertiesOverride();
+    scene.animationPropertiesOverride =
+      new BABYLON.AnimationPropertiesOverride();
     scene.animationPropertiesOverride.enableBlending = true;
     scene.animationPropertiesOverride.blendingSpeed = 0.15;
 
@@ -82,7 +121,7 @@ export async function loadPlayerCharacter(scene, parentNode, opts = {}) {
     _loadExtraAnims(scene, skeleton, anim);
   } else {
     // Old GLB fallback — uses baked Mixamo AnimationGroups
-    const { setupAnim } = await import('../utils/anim.js');
+    const { setupAnim } = await import("../utils/anim.js");
     anim = setupAnim(scene, skeleton);
   }
 
@@ -95,8 +134,8 @@ export async function loadPlayerCharacter(scene, parentNode, opts = {}) {
     raceChar,
     anim,
     useRaceChar,
-    raceName: faction.name || 'Human',
-    factionColor: faction.color || '#c8a951',
+    raceName: faction.name || "Human",
+    factionColor: faction.color || "#c8a951",
     raceId: selectedRace,
     equipManager: raceChar?.equipManager || null,
   };

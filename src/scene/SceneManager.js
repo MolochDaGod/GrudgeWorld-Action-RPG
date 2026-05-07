@@ -89,10 +89,32 @@ class SceneManager {
     this.canvas.classList.remove('visible');
     await new Promise(r => setTimeout(r, 400));
 
-    await this.loadScene(entry.fn);
-    await this.switchToScene(0);
-    this._activeKey = key;
-    this._loading   = false;
+    try {
+      await this.loadScene(entry.fn);
+      await this.switchToScene(0);
+      this._activeKey = key;
+      this._loading = false;
+    } catch (err) {
+      console.error(`[SceneManager] Failed to navigate to scene "${key}":`, err);
+      this._loading = false;
+
+      const fallback = SCENE_CATALOG.find((s) => s.key === 'character_create');
+      if (!fallback || key === 'character_create') {
+        this._showSceneError(`Scene failed to load: ${key}. Check console for details.`);
+        this._updateNav(this._activeKey, false);
+        return;
+      }
+
+      try {
+        await this.loadScene(fallback.fn);
+        await this.switchToScene(0);
+        this._activeKey = fallback.key;
+        this._showSceneError(`Failed to load "${key}". Loaded Character Create fallback.`);
+      } catch (fallbackErr) {
+        console.error('[SceneManager] Fallback scene also failed:', fallbackErr);
+        this._showSceneError('Critical scene loading failure. Check console for details.');
+      }
+    }
 
     this.canvas.classList.add('visible');
     this._updateNav(key, false);
@@ -112,9 +134,30 @@ class SceneManager {
     const fadeDelay  = FAST_RELOAD ? 100 : 1000;
     setTimeout(() => this.canvas.classList.add('visible'), fadeDelay);
 
-    await this.loadScene(startEntry.fn);
-    await this.switchToScene(0);
-    this._activeKey = startEntry.key;
+    try {
+      await this.loadScene(startEntry.fn);
+      await this.switchToScene(0);
+      this._activeKey = startEntry.key;
+    } catch (err) {
+      console.error(
+        `[SceneManager] Startup scene "${startEntry.key}" failed:`,
+        err,
+      );
+      const fallback = SCENE_CATALOG.find((s) => s.key === "character_create");
+      if (fallback && fallback.key !== startEntry.key) {
+        await this.loadScene(fallback.fn);
+        await this.switchToScene(0);
+        this._activeKey = fallback.key;
+        this._showSceneError(
+          `Startup scene failed. Loaded Character Create fallback.`,
+        );
+      } else {
+        this._showSceneError(
+          "Unable to start the game. Check console for details.",
+        );
+        throw err;
+      }
+    }
     this.canvas.focus();
 
     this._buildNav();
@@ -216,6 +259,24 @@ class SceneManager {
         if (entry) btn.textContent = entry.label;
       }
     }
+  }
+
+  _showSceneError(message) {
+    let el = document.getElementById('grudgeSceneError');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'grudgeSceneError';
+      el.style.cssText = `
+        position:fixed; top:44px; left:50%; transform:translateX(-50%);
+        z-index:10000; padding:8px 12px; border-radius:6px;
+        border:1px solid rgba(212, 80, 80, 0.45);
+        background:rgba(26, 8, 8, 0.86); color:#f0b4b4;
+        font-family:'Open Sans','Helvetica Neue',sans-serif;
+        font-size:11px; letter-spacing:0.4px;
+      `;
+      document.body.appendChild(el);
+    }
+    el.textContent = message;
   }
 }
 

@@ -502,6 +502,83 @@ export function PoisonCloudVFX(caster, target, scene, durationMs = 4000) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// FireballProjectileVFX — spline-based fire orb projectile
+// Fires a Projectile with fire trail from caster to target, triggers
+// MeleeImpactVFX on arrival. Uses the new spline projectile system.
+// ─────────────────────────────────────────────────────────────────────────────
+export function FireballProjectileVFX(caster, target, scene) {
+  // Lazy import to avoid circular deps — Projectile is in combat/visual
+  import('../combat/visual/projectile.js').then(({ Projectile }) => {
+    const proj = new Projectile({
+      speed: 14,
+      arcHeight: 3,
+      orbSize: 0.6,
+      element: 'fire',
+      hitRadius: 1.5,
+      onHit: () => {
+        // Impact burst at target
+        _spawnImpactBurst(scene, target.parent ? target.parent.position.clone() : BABYLON.Vector3.Zero());
+      },
+    });
+    proj.launch(caster, target);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GroundCraterVFX — radial ground crack + dust cloud for heavy slam attacks
+// ─────────────────────────────────────────────────────────────────────────────
+export function GroundCraterVFX(caster, radius, scene) {
+  const casterMesh = caster.rangeCheck || caster.parent;
+  const origin = casterMesh.position.clone();
+  origin.y += 0.05;
+
+  // Dark expanding disc (crater shadow)
+  const disc = BABYLON.MeshBuilder.CreateDisc(
+    'crater_' + Date.now(), { radius: 0.3, tessellation: 32 }, scene);
+  disc.position = origin.clone();
+  disc.rotation.x = Math.PI / 2;
+  const discMat = new BABYLON.StandardMaterial('craterMat_' + Date.now(), scene);
+  discMat.diffuseColor = new BABYLON.Color3(0.1, 0.08, 0.05);
+  discMat.emissiveColor = new BABYLON.Color3(0.15, 0.08, 0.02);
+  discMat.alpha = 0.7;
+  disc.material = discMat;
+
+  const targetScale = Math.max(2, (radius || 600) / 150);
+  const expandAnim = new BABYLON.Animation(
+    'craterExpand', 'scaling', 60,
+    BABYLON.Animation.ANIMATIONTYPE_VECTOR3,
+    BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
+  expandAnim.setKeys([
+    { frame: 0, value: new BABYLON.Vector3(0.5, 0.5, 1) },
+    { frame: 20, value: new BABYLON.Vector3(targetScale, targetScale, 1) },
+  ]);
+  disc.animations = [expandAnim];
+  scene.beginAnimation(disc, 0, 20, false, 1.0, () => {
+    setTimeout(() => disc.dispose(), 1500);
+  });
+
+  // Dust cloud particles
+  const ps = new BABYLON.ParticleSystem('craterDust_' + Date.now(), 400, scene);
+  ps.particleTexture = new BABYLON.Texture('assets/textures/effects/flare.png', scene);
+  ps.emitter = origin;
+  ps.minEmitBox = new BABYLON.Vector3(-1, 0, -1);
+  ps.maxEmitBox = new BABYLON.Vector3(1, 0.3, 1);
+  ps.color1 = new BABYLON.Color4(0.6, 0.45, 0.2, 0.8);
+  ps.color2 = new BABYLON.Color4(0.4, 0.3, 0.15, 0.5);
+  ps.colorDead = new BABYLON.Color4(0.2, 0.15, 0.05, 0);
+  ps.minSize = 0.2; ps.maxSize = 0.9;
+  ps.minLifeTime = 0.5; ps.maxLifeTime = 1.5;
+  ps.manualEmitCount = 300;
+  ps.blendMode = BABYLON.ParticleSystem.BLENDMODE_STANDARD;
+  ps.gravity = new BABYLON.Vector3(0, -1, 0);
+  ps.direction1 = new BABYLON.Vector3(-4, 3, -4);
+  ps.direction2 = new BABYLON.Vector3(4, 6, 4);
+  ps.minEmitPower = 3; ps.maxEmitPower = 7;
+  ps.start();
+  setTimeout(() => { ps.stop(); setTimeout(() => ps.dispose(), 2000); }, 200);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // PlasmaBurstVFX — cyan radial particle burst for mage ranged spells
 // Ported from 3d-model-vfx/src/effects/plasmaBurstVFX.ts
 // ─────────────────────────────────────────────────────────────────────────────

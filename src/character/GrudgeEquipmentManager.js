@@ -42,7 +42,10 @@ export class GrudgeEquipmentManager {
         const match = stripped.match(pattern);
         if (match) {
           if (!this.slots[slotName]) this.slots[slotName] = [];
-          const variant = match[1] || 'default';
+          const variant =
+            match[match.length - 1] && /^[A-Z]$/i.test(match[match.length - 1])
+              ? match[match.length - 1].toUpperCase()
+              : "default";
           this.slots[slotName].push({ variant, mesh });
           this._catalogedMeshes.add(mesh);
           // Start with everything hidden
@@ -52,9 +55,13 @@ export class GrudgeEquipmentManager {
         }
       }
 
-      // Hide uncataloged meshes (skeleton helpers, unnamed children)
-      // Keep only the root transform node visible (index 0)
-      if (!matched && mesh !== meshes[0]) {
+      // Keep uncataloged geometry visible (some race prefabs include body meshes
+      // not covered by slot naming). Hide only helper/empty nodes.
+      if (
+        !matched &&
+        mesh !== meshes[0] &&
+        (!mesh.getTotalVertices || mesh.getTotalVertices() === 0)
+      ) {
         mesh.isVisible = false;
       }
     }
