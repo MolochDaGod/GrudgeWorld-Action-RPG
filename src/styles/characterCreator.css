@@ -109,7 +109,14 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background: transparent;
+  background: #111118;
+}
+
+#cc-preview-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  outline: none;
 }
 
 .cc-preview-hint {
