@@ -233,12 +233,42 @@ export async function createCharacterCreate(engine) {
       _updateSkillsPanel();
       _loadClassAnims(activeClass);
       autoRotate = true;
+      if (DEBUG) _updateDebugOverlay();
     } catch (err) {
       console.error('[character_create] Race load failed:', err);
     } finally {
       // Always re-enable — character is ready (or load failed, show whatever rendered)
       if (characterNode) characterNode.setEnabled(true);
     }
+  }
+
+  // ── Debug overlay ────────────────────────────────────────────────
+  function _updateDebugOverlay() {
+    if (!currentRaceChar || !DEBUG) return;
+    let dbg = document.getElementById('cc-debug-overlay');
+    if (!dbg) {
+      dbg = document.createElement('pre');
+      dbg.id = 'cc-debug-overlay';
+      dbg.style.cssText = 'position:fixed;top:8px;right:8px;z-index:9999;background:rgba(0,0,0,0.85);' +
+        'color:#0f0;font:11px/1.4 monospace;padding:8px 12px;border-radius:6px;max-height:80vh;overflow:auto;pointer-events:none';
+      document.body.appendChild(dbg);
+    }
+    const em = currentRaceChar.equipManager;
+    const slots = Object.entries(em.slots).map(([slot, entries]) => {
+      const vis = entries.filter(e => e.mesh.isVisible).map(e => e.variant);
+      const eq = em.equipped[slot] || em.equipped.weapon?.type === slot ? (em.equipped[slot] || em.equipped.weapon?.variant) : '—';
+      return `  ${slot.padEnd(12)} variants:[${entries.map(e=>e.variant).join(',')}]  visible:[${vis.join(',') || '—'}]  equipped:${JSON.stringify(em.equipped[slot] ?? (em.equipped.weapon?.type===slot?em.equipped.weapon?.variant:null) ?? '—')}`;
+    }).join('\n');
+    const visibleMeshes = currentRaceChar.result.meshes.filter(m => m.isVisible).map(m => m.name);
+    const nodeEnabled = characterNode?.isEnabled();
+    dbg.textContent = [
+      `RACE: ${currentRaceChar.raceId}  CLASS: ${currentRaceChar.classId}  nodeEnabled: ${nodeEnabled}`,
+      `Meshes total: ${currentRaceChar.result.meshes.length}  visible: ${visibleMeshes.length}`,
+      `Visible: ${visibleMeshes.join(', ') || '(none)'}`,
+      ``,
+      `Slots:`,
+      slots,
+    ].join('\n');
   }
 
   async function _loadClassAnims(classId) {

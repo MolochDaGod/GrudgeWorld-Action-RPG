@@ -1,4 +1,8 @@
-let DEBUG = false;
+// Set DEBUG=true in code OR append ?debug to the URL to enable the Babylon inspector.
+let DEBUG = (() => {
+  try { return new URLSearchParams(window.location.search).has('debug'); }
+  catch (_) { return false; }
+})();
 
 let SCENE_MANAGER = {};
 

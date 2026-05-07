@@ -174,9 +174,26 @@ export async function loadRaceCharacter(scene, raceId, parent, options = {}) {
   const equipManager = new GrudgeEquipmentManager(faction.prefix);
   equipManager.catalog(result.meshes);
 
+  // Debug: log what got cataloged and what was missed
+  if (DEBUG) {
+    const slotSummary = Object.entries(equipManager.slots)
+      .map(([s, e]) => `${s}:[${e.map(x => x.variant).join(',')}]`).join(' ');
+    const uncataloged = result.meshes.filter(m =>
+      m.getTotalVertices?.() > 0 && !equipManager._catalogedMeshes.has(m) && m !== result.meshes[0]
+    ).map(m => m.name);
+    console.log(`[raceHero:catalog] ${raceId} slots →`, slotSummary);
+    if (uncataloged.length) console.warn(`[raceHero:catalog] ${raceId} UNCATALOGED meshes:`, uncataloged);
+  }
+
   // Apply class-specific equipment build (weapon, shield, head preference)
   const starterPreset = preset || _classPreset(raceId, classId);
   equipManager.applyPreset(starterPreset);
+
+  // Debug: log which meshes are now visible after preset
+  if (DEBUG) {
+    const visible = result.meshes.filter(m => m.isVisible).map(m => m.name);
+    console.log(`[raceHero:preset] ${raceId}/${classId} visible meshes (${visible.length}):`, visible);
+  }
 
   // ── 6. Scale & ground using VISIBLE meshes only ───────────────────────
   // Temporarily detach from parent so bounds are in local space (not affected
