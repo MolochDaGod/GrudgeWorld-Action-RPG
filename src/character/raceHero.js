@@ -348,12 +348,14 @@ async function _loadAnimations(scene, skeleton, animActions) {
         const folder = path.substring(0, path.lastIndexOf('/') + 1);
         const file   = path.substring(path.lastIndexOf('/') + 1);
         const res = await BABYLON.SceneLoader.ImportMeshAsync(null, folder, file, scene);
+        // Always dispose imported meshes — we only need the animation data.
+        // Skipping this when animGroups is empty left VFX geometry (fireball etc.) visible.
+        for (const m of res.meshes) { try { m.dispose(); } catch (_) {} }
         const animGroups = res.animationGroups || scene.animationGroups.slice(-1);
         if (animGroups.length > 0) {
           const ag = animGroups[0];
           ag.name = key;
           _retargetAnimGroup(ag, skeleton);
-          for (const m of res.meshes) m.dispose();
           animActions[key] = ag;
         }
       } catch (_) { /* skip */ }

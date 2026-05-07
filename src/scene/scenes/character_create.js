@@ -252,6 +252,8 @@ export async function createCharacterCreate(engine) {
       const file = fullPath.substring(fullPath.lastIndexOf('/') + 1);
       try {
         const result = await BABYLON.SceneLoader.ImportMeshAsync(null, folder, file, previewScene);
+        // Always dispose imported meshes — only the animation group is needed.
+        for (const m of result.meshes) { try { m.dispose(); } catch (_) {} }
         const animGroups = result.animationGroups || previewScene.animationGroups.slice(-1);
         if (animGroups.length > 0) {
           const ag = animGroups[0];
@@ -261,7 +263,6 @@ export async function createCharacterCreate(engine) {
           for (const ta of ag.targetedAnimations) {
             if (ta.target?.name && boneMap[ta.target.name]) ta.target = boneMap[ta.target.name];
           }
-          for (const m of result.meshes) m.dispose();
           classAnimActions[animKey] = ag;
         }
       } catch (_) {}
@@ -467,7 +468,7 @@ function _fmtBonuses(attrs) {
 function _injectAssets() {
   if (!document.querySelector('link[href*="Cinzel"]')) {
     const link = document.createElement('link');
-    link.href = 'https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Fira+Sans:wght@300;400;600&display=swap';
+    link.href = 'https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Jost:wght@300;400;500;600&display=swap';
     link.rel = 'stylesheet';
     document.head.appendChild(link);
   }

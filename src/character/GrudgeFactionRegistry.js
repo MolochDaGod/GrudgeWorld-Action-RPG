@@ -193,12 +193,16 @@ export const ANIMATION_PACKS = {
   brbMageCast: "./assets/glb/anims/extras/brb_mage_cast.glb",
   brbSpearmanAttack: "./assets/glb/anims/extras/brb_spearman_attack.glb",
 
-  // -- VFX mesh models --
-  vfxFireball: "./assets/glb/vfx/fireball.glb",
-  vfxFireballLow: "./assets/glb/vfx/fireball_low.glb",
-  vfxIceLance: "./assets/glb/vfx/ice_lance.glb",
-  vfxIceLanceLow: "./assets/glb/vfx/ice_lance_low.glb",
-  vfxPotion: "./assets/glb/vfx/potion.glb",
+};
+
+// VFX mesh paths — loaded on demand by the spell/combat system, NOT part of ANIMATION_PACKS.
+// Keeping them separate prevents undisposed VFX geometry from appearing in the character preview.
+export const VFX_PACKS = {
+  fireball:     "./assets/glb/vfx/fireball.glb",
+  fireballLow:  "./assets/glb/vfx/fireball_low.glb",
+  iceLance:     "./assets/glb/vfx/ice_lance.glb",
+  iceLanceLow:  "./assets/glb/vfx/ice_lance_low.glb",
+  potion:       "./assets/glb/vfx/potion.glb",
 };
 
 /**
@@ -389,38 +393,38 @@ export const ARMOR_PRESETS = {
 export const CLASS_WEAPON_PRESETS = {
   human: {
     warrior: { weapon: { type: 'sword', variant: 'B' }, shield: 'D' },
-    ranger:  { weapon: { type: 'bow', variant: 'default' }, shield: null },
+    ranger:  { weapon: { type: 'bow',   variant: 'A' }, shield: null },
     mage:    { weapon: { type: 'staff', variant: 'B' }, shield: null },
-    worge:   { weapon: { type: 'axe', variant: 'A' }, shield: null },
+    worge:   { weapon: { type: 'axe',   variant: 'A' }, shield: null },
   },
   barbarian: {
-    warrior: { weapon: { type: 'axe', variant: 'B' }, shield: 'B' },
-    ranger:  { weapon: { type: 'bow', variant: 'default' }, shield: null },
+    warrior: { weapon: { type: 'axe',   variant: 'B' }, shield: 'B' },
+    ranger:  { weapon: { type: 'bow',   variant: 'A' }, shield: null },
     mage:    { weapon: { type: 'staff', variant: 'A' }, shield: null },
-    worge:   { weapon: { type: 'axe', variant: 'A' }, shield: null },
+    worge:   { weapon: { type: 'axe',   variant: 'A' }, shield: null },
   },
   elf: {
     warrior: { weapon: { type: 'sword', variant: 'B' }, shield: 'C' },
-    ranger:  { weapon: { type: 'bow', variant: 'default' }, shield: null },
+    ranger:  { weapon: { type: 'bow',   variant: 'A' }, shield: null },
     mage:    { weapon: { type: 'staff', variant: 'B' }, shield: null },
-    worge:   { weapon: { type: 'axe', variant: 'default' }, shield: null },
+    worge:   { weapon: { type: 'axe',   variant: 'A' }, shield: null },
   },
   dwarf: {
     warrior: { weapon: { type: 'hammer', variant: 'B' }, shield: 'B' },
-    ranger:  { weapon: { type: 'bow', variant: 'default' }, shield: null },
-    mage:    { weapon: { type: 'staff', variant: 'A' }, shield: null },
+    ranger:  { weapon: { type: 'bow',    variant: 'A' }, shield: null },
+    mage:    { weapon: { type: 'staff',  variant: 'A' }, shield: null },
     worge:   { weapon: { type: 'hammer', variant: 'A' }, shield: null },
   },
   orc: {
-    warrior: { weapon: { type: 'axe', variant: 'B' }, shield: 'C' },
-    ranger:  { weapon: { type: 'bow', variant: 'default' }, shield: null },
+    warrior: { weapon: { type: 'axe',   variant: 'B' }, shield: 'C' },
+    ranger:  { weapon: { type: 'bow',   variant: 'A' }, shield: null },
     mage:    { weapon: { type: 'staff', variant: 'B' }, shield: null },
-    worge:   { weapon: { type: 'mace', variant: 'A' }, shield: null },
+    worge:   { weapon: { type: 'mace',  variant: 'A' }, shield: null },
   },
   undead: {
     warrior: { weapon: { type: 'sword', variant: 'B' }, shield: 'B' },
-    ranger:  { weapon: { type: 'bow', variant: 'default' }, shield: null },
+    ranger:  { weapon: { type: 'bow',   variant: 'A' }, shield: null },
     mage:    { weapon: { type: 'staff', variant: 'C' }, shield: null },
-    worge:   { weapon: { type: 'axe', variant: 'A' }, shield: null },
+    worge:   { weapon: { type: 'axe',   variant: 'A' }, shield: null },
   },
 };
