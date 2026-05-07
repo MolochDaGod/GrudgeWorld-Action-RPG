@@ -337,29 +337,89 @@ export function getSlotPBR(partType, armorType) {
  *   worge   — leather, axe (fallback hammer/mace), no shield
  */
 export const CLASS_BUILDS = {
-  warrior: {
-    armorType: 'metal',
-    weapon: { type: 'sword', variant: 'A' },
-    shield: 'A',
-    preferHead: null, // use default race head
+  warrior: { armorType: 'metal' },
+  ranger:  { armorType: 'leather' },
+  mage:    { armorType: 'cloth' },
+  worge:   { armorType: 'leather' },
+};
+
+/**
+ * Per-race armor presets — which body/arms/legs/shoulders mesh variant
+ * to show for each armor type. These are different meshes (plate vs leather
+ * vs robes), not just material swaps.
+ */
+export const ARMOR_PRESETS = {
+  human: {
+    cloth:   { body: 'E', arms: 'D', legs: 'C', shoulders: 'B' },
+    leather: { body: 'C', arms: 'B', legs: 'B', shoulders: 'A' },
+    metal:   { body: 'B', arms: 'A', legs: 'A', shoulders: null },
   },
-  ranger: {
-    armorType: 'leather',
-    weapon: { type: 'bow', variant: 'default' },
-    shield: null,
-    preferHead: null,
+  barbarian: {
+    cloth:   { body: 'H', arms: 'C', legs: 'C', shoulders: 'C' },
+    leather: { body: 'D', arms: 'B', legs: 'B', shoulders: 'B' },
+    metal:   { body: 'B', arms: 'A', legs: 'A', shoulders: null },
   },
-  mage: {
-    armorType: 'cloth',
-    weapon: { type: 'staff', variant: 'A' },
-    shield: null,
-    preferHead: null, // mage hats are head variants — pick highest available
-    preferHighHead: true,
+  elf: {
+    cloth:   { body: 'F', arms: 'C', legs: 'C', shoulders: 'C' },
+    leather: { body: 'C', arms: 'B', legs: 'B', shoulders: 'B' },
+    metal:   { body: 'B', arms: 'A', legs: 'A', shoulders: null },
   },
-  worge: {
-    armorType: 'leather',
-    weapon: { type: 'axe', variant: 'A' },
-    shield: null,
-    preferHead: null,
+  dwarf: {
+    cloth:   { body: 'E', arms: 'C', legs: 'C', shoulders: 'C' },
+    leather: { body: 'C', arms: 'B', legs: 'B', shoulders: 'B' },
+    metal:   { body: 'B', arms: 'A', legs: 'A', shoulders: null },
+  },
+  orc: {
+    cloth:   { body: 'G', arms: 'C', legs: 'D', shoulders: 'F' },
+    leather: { body: 'D', arms: 'B', legs: 'B', shoulders: 'C' },
+    metal:   { body: 'B', arms: 'A', legs: 'A', shoulders: null },
+  },
+  undead: {
+    cloth:   { body: 'G', arms: 'E', legs: 'D', shoulders: 'C' },
+    leather: { body: 'D', arms: 'C', legs: 'B', shoulders: 'B' },
+    metal:   { body: 'B', arms: 'A', legs: 'A', shoulders: null },
+  },
+};
+
+/**
+ * Per-race, per-class weapon + shield presets.
+ * Warrior = sword+shield, Ranger = bow, Mage = staff, Worge = axe (no shield).
+ */
+export const CLASS_WEAPON_PRESETS = {
+  human: {
+    warrior: { weapon: { type: 'sword', variant: 'B' }, shield: 'D' },
+    ranger:  { weapon: { type: 'bow', variant: 'default' }, shield: null },
+    mage:    { weapon: { type: 'staff', variant: 'B' }, shield: null },
+    worge:   { weapon: { type: 'axe', variant: 'A' }, shield: null },
+  },
+  barbarian: {
+    warrior: { weapon: { type: 'axe', variant: 'B' }, shield: 'B' },
+    ranger:  { weapon: { type: 'bow', variant: 'default' }, shield: null },
+    mage:    { weapon: { type: 'staff', variant: 'A' }, shield: null },
+    worge:   { weapon: { type: 'axe', variant: 'A' }, shield: null },
+  },
+  elf: {
+    warrior: { weapon: { type: 'sword', variant: 'B' }, shield: 'C' },
+    ranger:  { weapon: { type: 'bow', variant: 'default' }, shield: null },
+    mage:    { weapon: { type: 'staff', variant: 'B' }, shield: null },
+    worge:   { weapon: { type: 'axe', variant: 'default' }, shield: null },
+  },
+  dwarf: {
+    warrior: { weapon: { type: 'hammer', variant: 'B' }, shield: 'B' },
+    ranger:  { weapon: { type: 'bow', variant: 'default' }, shield: null },
+    mage:    { weapon: { type: 'staff', variant: 'A' }, shield: null },
+    worge:   { weapon: { type: 'hammer', variant: 'A' }, shield: null },
+  },
+  orc: {
+    warrior: { weapon: { type: 'axe', variant: 'B' }, shield: 'C' },
+    ranger:  { weapon: { type: 'bow', variant: 'default' }, shield: null },
+    mage:    { weapon: { type: 'staff', variant: 'B' }, shield: null },
+    worge:   { weapon: { type: 'mace', variant: 'A' }, shield: null },
+  },
+  undead: {
+    warrior: { weapon: { type: 'sword', variant: 'B' }, shield: 'B' },
+    ranger:  { weapon: { type: 'bow', variant: 'default' }, shield: null },
+    mage:    { weapon: { type: 'staff', variant: 'C' }, shield: null },
+    worge:   { weapon: { type: 'axe', variant: 'A' }, shield: null },
   },
 };

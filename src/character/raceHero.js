@@ -16,7 +16,7 @@
  *   const raceChar = await loadRaceCharacter(scene, 'orc', parentNode);
  */
 
-import { FACTIONS, ANIMATION_PACKS, classifyMeshPart, getSlotPBR, CLASS_BUILDS } from './GrudgeFactionRegistry.js';
+import { FACTIONS, ANIMATION_PACKS, classifyMeshPart, getSlotPBR, CLASS_BUILDS, ARMOR_PRESETS, CLASS_WEAPON_PRESETS } from './GrudgeFactionRegistry.js';
 import { GrudgeEquipmentManager } from './GrudgeEquipmentManager.js';
 
 // ── Texture cache (loaded once, reused across race switches) ────────────────
@@ -231,17 +231,17 @@ class RaceCharacter {
   }
 
   /**
-   * Switch class build — updates armor PBR materials + equips class weapon/shield.
-   * Called when the player changes class in the character creator.
+   * Switch class build — swaps to the correct armor meshes (plate/leather/cloth)
+   * AND updates PBR material properties AND equips the class weapon/shield.
    */
   applyClassBuild(newClassId) {
     this.classId = newClassId;
     const build = CLASS_BUILDS[newClassId] || CLASS_BUILDS.warrior;
     const armorType = build.armorType || 'leather';
 
-    // Update PBR roughness/metalness on every mesh based on new armor type
+    // 1. Update PBR roughness/metalness on every mesh for the new armor type
     for (const mesh of this.result.meshes) {
-      if (!mesh.material || !mesh.material.roughness === undefined) continue;
+      if (!mesh.material || mesh.material.roughness === undefined) continue;
       const partType = classifyMeshPart(mesh.name);
       const pbr = getSlotPBR(partType, armorType);
       if (partType === 'skin' || partType === 'head') {
@@ -253,11 +253,11 @@ class RaceCharacter {
       }
     }
 
-    // Apply class equipment preset
+    // 2. Switch to the correct armor MESH variants (different geometry per armor type)
     const preset = _classPreset(this.raceId, newClassId);
     this.equipManager.applyPreset(preset);
 
-    console.log(`[raceHero] Class build applied: ${newClassId} (${armorType})`);
+    console.log(`[raceHero] Class build: ${newClassId} (${armorType}) — body:${preset.body} arms:${preset.arms} legs:${preset.legs}`);
   }
 
   playAnim(key, loop = true, blendTime = 0.15) {
@@ -341,34 +341,41 @@ function _retargetAnimGroup(animGroup, targetSkeleton) {
 
 /**
  * Build the equipment preset for a race + class combination.
- * Uses CLASS_BUILDS for weapon/shield/armor, race-specific body/arms/legs defaults.
+ * Uses ARMOR_PRESETS for the correct body/arms/legs/shoulders mesh variants
+ * (different geometry per armor type) and CLASS_WEAPON_PRESETS for weapons.
  */
 function _classPreset(raceId, classId) {
   const build = CLASS_BUILDS[classId] || CLASS_BUILDS.warrior;
+  const armorType = build.armorType || 'leather';
 
-  // Race-specific armor slot defaults (which body/arms/legs/head variant looks best)
-  const raceDefaults = {
-    human:     { body: 'B', arms: 'A', legs: 'A', head: 'B', shoulders: 'A' },
-    barbarian: { body: 'C', arms: 'B', legs: 'B', head: 'A' },
-    elf:       { body: 'A', arms: 'A', legs: 'A', head: 'C' },
-    dwarf:     { body: 'D', arms: 'C', legs: 'B', head: 'D', shoulders: 'B' },
-    orc:       { body: 'E', arms: 'D', legs: 'C', head: 'E' },
-    undead:    { body: 'B', arms: 'A', legs: 'A', head: 'A' },
-  };
+  // Get the correct armor mesh variants for this race + armor type
+  const raceArmor = ARMOR_PRESETS[raceId];
+  const armorSet = raceArmor ? raceArmor[armorType] : null;
 
-  const rd = raceDefaults[raceId] || raceDefaults.human;
-  const preset = { ...rd };
+  const preset = {};
 
-  // Class weapon + shield
-  if (build.weapon) preset.weapon = { ...build.weapon };
-  if (build.shield) preset.shield = build.shield;
-  // No shield for non-warrior classes
-  if (!build.shield) delete preset.shield;
+  // Armor slots — each variant letter IS a different mesh (plate vs leather vs robes)
+  if (armorSet) {
+    if (armorSet.body) preset.body = armorSet.body;
+    if (armorSet.arms) preset.arms = armorSet.arms;
+    if (armorSet.legs) preset.legs = armorSet.legs;
+    if (armorSet.shoulders) preset.shoulders = armorSet.shoulders;
+  } else {
+    // Fallback if no preset defined
+    preset.body = 'A'; preset.arms = 'A'; preset.legs = 'A';
+  }
 
-  // Warrior always gets shoulders for the plate look
-  if (classId === 'warrior' && !preset.shoulders) preset.shoulders = 'A';
-  // Non-warrior classes drop shoulders unless race has them by default
-  if (classId !== 'warrior' && !rd.shoulders) delete preset.shoulders;
+  // Head — always use a reasonable default per race
+  const defaultHeads = { human: 'B', barbarian: 'A', elf: 'C', dwarf: 'D', orc: 'A', undead: 'A' };
+  preset.head = defaultHeads[raceId] || 'A';
+
+  // Weapon + shield from CLASS_WEAPON_PRESETS (per-race, per-class)
+  const raceWeapons = CLASS_WEAPON_PRESETS[raceId];
+  const wp = raceWeapons ? raceWeapons[classId] : null;
+  if (wp) {
+    if (wp.weapon) preset.weapon = { ...wp.weapon };
+    if (wp.shield) preset.shield = wp.shield;
+  }
 
   return preset;
 }
