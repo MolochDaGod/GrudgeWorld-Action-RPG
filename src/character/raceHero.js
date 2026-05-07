@@ -85,6 +85,15 @@ export async function loadRaceCharacter(scene, raceId, parent, options = {}) {
 
   if (parent) root.parent = parent;
 
+  // Hide every geometry mesh immediately so nothing is visible during the
+  // async texture-load gap. catalog()+applyPreset() will re-show the correct
+  // variants once the full pipeline completes.
+  for (const mesh of result.meshes) {
+    if (mesh.getTotalVertices && mesh.getTotalVertices() > 0) {
+      mesh.isVisible = false;
+    }
+  }
+
   // ── 2. Load external race texture + normal map ────────────────────────────
   const [raceTex, normalTex] = await Promise.all([
     faction.texturePath   ? _loadTexture(scene, faction.texturePath, true)   : Promise.resolve(null),

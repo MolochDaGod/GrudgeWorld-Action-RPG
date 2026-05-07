@@ -216,6 +216,11 @@ export async function createCharacterCreate(engine) {
 
     if (!previewScene) return;
 
+    // Hide the character node completely during load so no partially-loaded
+    // or all-variants-stacked geometry is visible while textures / catalog
+    // / applyPreset are still in progress.
+    if (characterNode) characterNode.setEnabled(false);
+
     try {
       currentRaceChar = await loadRaceCharacter(previewScene, raceId, characterNode, { classId: activeClass });
       // Add shadows
@@ -230,6 +235,9 @@ export async function createCharacterCreate(engine) {
       autoRotate = true;
     } catch (err) {
       console.error('[character_create] Race load failed:', err);
+    } finally {
+      // Always re-enable — character is ready (or load failed, show whatever rendered)
+      if (characterNode) characterNode.setEnabled(true);
     }
   }
 
