@@ -502,6 +502,184 @@ export function PoisonCloudVFX(caster, target, scene, durationMs = 4000) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// PlasmaBurstVFX — cyan radial particle burst for mage ranged spells
+// Ported from 3d-model-vfx/src/effects/plasmaBurstVFX.ts
+// ─────────────────────────────────────────────────────────────────────────────
+export function PlasmaBurstVFX(caster, target, scene) {
+  const pos = target.parent
+    ? target.parent.position.clone()
+    : BABYLON.Vector3.Zero();
+  pos.y += 1.0;
+
+  // Core burst — 800 cyan particles radiating outward
+  const ps = new BABYLON.ParticleSystem('plasmaBurst_' + Date.now(), 800, scene);
+  ps.particleTexture = new BABYLON.Texture('assets/textures/effects/flare.png', scene);
+  ps.emitter = pos;
+  ps.minEmitBox = ps.maxEmitBox = new BABYLON.Vector3(0, 0, 0);
+  ps.color1 = new BABYLON.Color4(0.0, 1.0, 1.0, 1.0);
+  ps.color2 = new BABYLON.Color4(0.0, 0.6, 1.0, 0.8);
+  ps.colorDead = new BABYLON.Color4(0.0, 0.0, 0.4, 0.0);
+  ps.minSize = 0.1;
+  ps.maxSize = 0.55;
+  ps.minLifeTime = 0.2;
+  ps.maxLifeTime = 0.7;
+  ps.manualEmitCount = 500;
+  ps.blendMode = BABYLON.ParticleSystem.BLENDMODE_ONEONE;
+  ps.gravity = new BABYLON.Vector3(0, 1, 0);
+  ps.direction1 = new BABYLON.Vector3(-6, 2, -6);
+  ps.direction2 = new BABYLON.Vector3(6, 8, 6);
+  ps.minEmitPower = 5;
+  ps.maxEmitPower = 12;
+  ps.start();
+  setTimeout(() => { ps.stop(); setTimeout(() => ps.dispose(), 900); }, 150);
+
+  // Expanding shockwave ring
+  const ring = BABYLON.MeshBuilder.CreateTorus(
+    'plasmaRing_' + Date.now(),
+    { diameter: 0.2, thickness: 0.08, tessellation: 48 }, scene);
+  ring.position = pos.clone();
+  ring.position.y += 0.05;
+  const rMat = new BABYLON.StandardMaterial('plasmaRingMat_' + Date.now(), scene);
+  rMat.emissiveColor = new BABYLON.Color3(0.0, 0.9, 1.0);
+  rMat.disableLighting = true;
+  rMat.alpha = 0.8;
+  ring.material = rMat;
+
+  const expandAnim = new BABYLON.Animation(
+    'plasmaExpand', 'scaling', 60,
+    BABYLON.Animation.ANIMATIONTYPE_VECTOR3,
+    BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
+  expandAnim.setKeys([
+    { frame: 0, value: new BABYLON.Vector3(0.5, 1, 0.5) },
+    { frame: 20, value: new BABYLON.Vector3(8, 1, 8) },
+  ]);
+  ring.animations = [expandAnim];
+  scene.beginAnimation(ring, 0, 20, false, 1.0, () => ring.dispose());
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SpellCastRingVFX — concentric expanding rings at caster's feet
+// Ported from 3d-model-vfx/src/effects/spellCastVFX.ts
+// ─────────────────────────────────────────────────────────────────────────────
+export function SpellCastRingVFX(caster, target, scene) {
+  const casterMesh = caster.rangeCheck || caster.parent;
+  const origin = casterMesh.position.clone();
+  origin.y += 0.15;
+
+  const RING_COUNT = 4;
+  const COLORS = [
+    new BABYLON.Color3(0.0, 1.0, 1.0),
+    new BABYLON.Color3(0.2, 0.6, 1.0),
+    new BABYLON.Color3(0.4, 0.3, 1.0),
+    new BABYLON.Color3(0.6, 0.2, 1.0),
+  ];
+
+  for (let i = 0; i < RING_COUNT; i++) {
+    const ring = BABYLON.MeshBuilder.CreateTorus(
+      'castRing_' + i + '_' + Date.now(),
+      { diameter: 0.3 + i * 0.4, thickness: 0.04, tessellation: 48 }, scene);
+    ring.position = origin.clone();
+    const mat = new BABYLON.StandardMaterial('castRingMat_' + i + '_' + Date.now(), scene);
+    mat.emissiveColor = COLORS[i];
+    mat.disableLighting = true;
+    mat.alpha = 0.7 - i * 0.1;
+    ring.material = mat;
+
+    const delay = i * 80;
+    setTimeout(() => {
+      const anim = new BABYLON.Animation(
+        'castExpand_' + i, 'scaling', 60,
+        BABYLON.Animation.ANIMATIONTYPE_VECTOR3,
+        BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
+      anim.setKeys([
+        { frame: 0, value: new BABYLON.Vector3(0.5, 1, 0.5) },
+        { frame: 25, value: new BABYLON.Vector3(5 + i * 1.5, 1, 5 + i * 1.5) },
+      ]);
+      ring.animations = [anim];
+      scene.beginAnimation(ring, 0, 25, false, 1.0, () => ring.dispose());
+    }, delay);
+  }
+
+  // Upward particle scatter (the "burst" from the spell cast reference)
+  const ps = new BABYLON.ParticleSystem('castBurst_' + Date.now(), 200, scene);
+  ps.particleTexture = new BABYLON.Texture('assets/textures/effects/flare.png', scene);
+  ps.emitter = origin;
+  ps.minEmitBox = new BABYLON.Vector3(-0.5, 0, -0.5);
+  ps.maxEmitBox = new BABYLON.Vector3(0.5, 0, 0.5);
+  ps.color1 = new BABYLON.Color4(0.0, 1.0, 1.0, 0.9);
+  ps.color2 = new BABYLON.Color4(0.4, 0.4, 1.0, 0.6);
+  ps.colorDead = new BABYLON.Color4(0, 0, 0.2, 0);
+  ps.minSize = 0.08;
+  ps.maxSize = 0.3;
+  ps.minLifeTime = 0.3;
+  ps.maxLifeTime = 0.8;
+  ps.manualEmitCount = 120;
+  ps.blendMode = BABYLON.ParticleSystem.BLENDMODE_ONEONE;
+  ps.gravity = new BABYLON.Vector3(0, 4, 0);
+  ps.direction1 = new BABYLON.Vector3(-2, 3, -2);
+  ps.direction2 = new BABYLON.Vector3(2, 8, 2);
+  ps.minEmitPower = 2;
+  ps.maxEmitPower = 5;
+  ps.start();
+  setTimeout(() => { ps.stop(); setTimeout(() => ps.dispose(), 1000); }, 200);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MeleeImpactVFX — shockwave ring + scattered debris at hit point
+// Ported from 3d-model-vfx/src/effects/meleeImpactVFX.ts
+// ─────────────────────────────────────────────────────────────────────────────
+export function MeleeImpactVFX(caster, target, scene) {
+  const pos = target.parent
+    ? target.parent.position.clone()
+    : BABYLON.Vector3.Zero();
+  pos.y += 1.2;
+
+  // Shockwave ring expanding from impact
+  const ring = BABYLON.MeshBuilder.CreateTorus(
+    'impactRing_' + Date.now(),
+    { diameter: 0.1, thickness: 0.06, tessellation: 32 }, scene);
+  ring.position = pos.clone();
+  const rMat = new BABYLON.StandardMaterial('impactRingMat_' + Date.now(), scene);
+  rMat.emissiveColor = new BABYLON.Color3(1.0, 0.65, 0.2);
+  rMat.disableLighting = true;
+  rMat.alpha = 0.85;
+  ring.material = rMat;
+
+  const expandAnim = new BABYLON.Animation(
+    'impactExpand', 'scaling', 60,
+    BABYLON.Animation.ANIMATIONTYPE_VECTOR3,
+    BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
+  expandAnim.setKeys([
+    { frame: 0, value: new BABYLON.Vector3(0.5, 1, 0.5) },
+    { frame: 15, value: new BABYLON.Vector3(6, 1, 6) },
+  ]);
+  ring.animations = [expandAnim];
+  scene.beginAnimation(ring, 0, 15, false, 1.5, () => ring.dispose());
+
+  // Debris scatter particles
+  const ps = new BABYLON.ParticleSystem('impactDebris_' + Date.now(), 350, scene);
+  ps.particleTexture = new BABYLON.Texture('assets/textures/effects/flare.png', scene);
+  ps.emitter = pos;
+  ps.minEmitBox = ps.maxEmitBox = new BABYLON.Vector3(0, 0, 0);
+  ps.color1 = new BABYLON.Color4(1.0, 0.8, 0.3, 1.0);
+  ps.color2 = new BABYLON.Color4(1.0, 0.45, 0.1, 0.9);
+  ps.colorDead = new BABYLON.Color4(0.3, 0.1, 0.0, 0.0);
+  ps.minSize = 0.06;
+  ps.maxSize = 0.35;
+  ps.minLifeTime = 0.15;
+  ps.maxLifeTime = 0.5;
+  ps.manualEmitCount = 250;
+  ps.blendMode = BABYLON.ParticleSystem.BLENDMODE_ONEONE;
+  ps.gravity = new BABYLON.Vector3(0, -3, 0);
+  ps.direction1 = new BABYLON.Vector3(-5, 2, -5);
+  ps.direction2 = new BABYLON.Vector3(5, 6, 5);
+  ps.minEmitPower = 4;
+  ps.maxEmitPower = 10;
+  ps.start();
+  setTimeout(() => { ps.stop(); setTimeout(() => ps.dispose(), 700); }, 100);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // BuffGlowVFX — gold shimmer aura for positive buff (speed boost, holy, etc.)
 // Matches FRESH GRUDGE's BuffSkillEffect (follows target for buff duration)
 // ─────────────────────────────────────────────────────────────────────────────

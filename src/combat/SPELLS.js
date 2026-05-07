@@ -23,22 +23,25 @@ import {
   AOEExplosionVFX,
   PoisonCloudVFX,
   BuffGlowVFX,
+  PlasmaBurstVFX,
+  SpellCastRingVFX,
+  MeleeImpactVFX,
 } from "../utils/vfx.js";
 
 export var SPELLS = {
-  // ── Melee — default fire slash ────────────────────────────────────────────
+  // ── Melee — default fire slash + impact shockwave ─────────────────────────
   quickSwing: new Spell(
     "Quick Swing",
     [new Effect("damage", 2)],
     "fireballAnimation",
-    SlashEffect,
+    (c, t, s) => { SlashEffect(c, t, s); MeleeImpactVFX(c, t, s); },
     35,
   ),
   heavySwing: new Spell(
     "Heavy Swing",
     [new Effect("damage", 10)],
     "fireballAnimation",
-    SlashEffect,
+    (c, t, s) => { SlashEffect(c, t, s); MeleeImpactVFX(c, t, s); },
     45,
   ),
 
@@ -98,11 +101,12 @@ export var SPELLS = {
   // ── Magic — Thunderball (hotkey 1) ────────────────────────────────────────
   // White-blush orb materialises above the tab-targeted enemy's head,
   // then a zigzag lightning bolt strikes down for 15 damage.
+  // Now also fires SpellCastRing at caster feet + PlasmaBurst on impact.
   thunderball: new ThunderballSpell(
     "Thunderball",
     [new Effect("damage", 15)],
     "fireballAnimation",
-    LightningBallVFX,
+    (c, t, s) => { SpellCastRingVFX(c, t, s); LightningBallVFX(c, t, s); PlasmaBurstVFX(c, t, s); },
     300,
   ),
 

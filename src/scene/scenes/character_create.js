@@ -19,6 +19,8 @@ import { FACTIONS, RACE_ORDER, ANIMATION_PACKS, SLOT_PATTERNS, WEAPON_SLOTS }
   from '../../character/GrudgeFactionRegistry.js';
 import { GrudgeSDK, ANIM_CATALOG, CLASS_ANIM_MAP, getAnimsForClass, getAllAnims }
   from '../../lib/grudgeSDK.js';
+import { getSkillDisplayList, ELEMENT_ICONS, ELEMENT_COLORS }
+  from '../../combat/weaponSkills.js';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SCENE FACTORY
@@ -134,6 +136,7 @@ export async function createCharacterCreate(engine) {
       else if (slot === 'shield') em.equipShield(v);
       else em.equip(slot, v);
       _updateEquipPanel();
+      _updateSkillsPanel();
     },
     onAnimPlay: (animKey) => {
       if (!currentRaceChar) return;
@@ -226,6 +229,7 @@ export async function createCharacterCreate(engine) {
       }
       _updateEquipPanel();
       _updateStats();
+      _updateSkillsPanel();
       await _loadClassAnims(activeClass);
       _updateAnimGrid();
       autoRotate = true;
@@ -254,6 +258,12 @@ export async function createCharacterCreate(engine) {
   function _updateAnimGrid() {
     const anims = getAnimsForClass(activeClass);
     ui.updateAnimations(anims);
+  }
+
+  function _updateSkillsPanel() {
+    const equipped = currentRaceChar?.equipManager?.equipped;
+    const weaponType = equipped?.weapon?.type || 'sword';
+    ui.updateSkills(weaponType, activeClass);
   }
 
   // ── Auto-rotate ─────────────────────────────────────────────────────────────
@@ -375,6 +385,11 @@ function _buildUI(racesMap, classesMap, factionsMap, factionRegistry, callbacks)
               <div id="cc-equip"></div>
               <div class="cc-section-divider"></div>
 
+              <!-- Skills (weapon-based) -->
+              <h3 class="cc-section-label">Skills</h3>
+              <div id="cc-skills" class="cc-skill-grid"></div>
+              <div class="cc-section-divider"></div>
+
               <!-- Animations -->
               <h3 class="cc-section-label">Animations</h3>
               <div id="cc-anims" class="cc-anim-grid"></div>
@@ -476,6 +491,29 @@ function _buildUI(racesMap, classesMap, factionsMap, factionRegistry, callbacks)
       container.querySelectorAll('.cc-eq-next').forEach(btn => {
         btn.addEventListener('click', () => callbacks.onEquipCycle(btn.dataset.slot, 1));
       });
+    },
+
+    updateSkills(weaponType, classId) {
+      const container = root.querySelector('#cc-skills');
+      if (!container) return;
+      const skills = getSkillDisplayList(weaponType, classId);
+      if (skills.length === 0) {
+        container.innerHTML = '<div style="color:var(--cc-dim);font-size:11px;">No weapon equipped</div>';
+        return;
+      }
+      container.innerHTML = skills.map(s => {
+        const icon = ELEMENT_ICONS[s.element] || '⚔';
+        const color = ELEMENT_COLORS[s.element] || '#b8b8c0';
+        const stat = s.heal ? `+${s.heal} HP` : (s.damage ? `${s.damage} dmg` : '');
+        const dot = s.dot ? ` +${s.dot}` : '';
+        return `<div class="cc-skill-card">
+          <span class="cc-skill-icon" style="color:${color}">${icon}</span>
+          <div class="cc-skill-info">
+            <span class="cc-skill-name">${s.name}</span>
+            <span class="cc-skill-stat" style="color:${color}">${stat}${dot}</span>
+          </div>
+        </div>`;
+      }).join('');
     },
 
     updateAnimations(anims) {
