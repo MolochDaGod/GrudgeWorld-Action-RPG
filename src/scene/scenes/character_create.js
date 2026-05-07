@@ -40,22 +40,24 @@ export async function createCharacterCreate(engine) {
   const availableClasses = Object.keys(classesMap);
 
   // ── Camera ──────────────────────────────────────────────────────────────────
-  const camera = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2, Math.PI / 3.2, 5,
-    new BABYLON.Vector3(0, 0, 0), scene);
+  // Target chest-height (y=0.85) so the full character is visible in frame
+  const camera = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2, Math.PI / 2.8, 4,
+    new BABYLON.Vector3(0, 0.85, 0), scene);
   camera.lowerRadiusLimit = 2;
-  camera.upperRadiusLimit = 10;
-  camera.upperBetaLimit = Math.PI / 2;
+  camera.upperRadiusLimit = 8;
+  camera.upperBetaLimit = Math.PI / 2.1;
   camera.wheelDeltaPercentage = 0.02;
+  camera.minZ = 0.1;
   camera.attachControl(engine.getRenderingCanvas(), true);
 
   // ── Lighting ────────────────────────────────────────────────────────────────
   const hemi = new BABYLON.HemisphericLight('hemi', new BABYLON.Vector3(0, 1, 0), scene);
-  hemi.intensity = 0.6;
-  hemi.diffuse = new BABYLON.Color3(0.9, 0.85, 0.75);
-  hemi.groundColor = new BABYLON.Color3(0.1, 0.1, 0.15);
+  hemi.intensity = 0.8;
+  hemi.diffuse = new BABYLON.Color3(1.0, 0.95, 0.9);
+  hemi.groundColor = new BABYLON.Color3(0.15, 0.15, 0.2);
 
   const dir = new BABYLON.DirectionalLight('dir', new BABYLON.Vector3(-1, -2, -1), scene);
-  dir.intensity = 1.4;
+  dir.intensity = 1.6;
   dir.position = new BABYLON.Vector3(5, 10, 5);
 
   const shadowGen = new BABYLON.ShadowGenerator(1024, dir);
@@ -70,24 +72,26 @@ export async function createCharacterCreate(engine) {
   } catch (_) {}
 
   // ── Platform ────────────────────────────────────────────────────────────────
+  // Small, subtle platform at y=0 so the character stands on it naturally
   const ground = BABYLON.MeshBuilder.CreateCylinder('platform',
-    { diameter: 4, height: 0.15, tessellation: 64 }, scene);
-  ground.position.y = -1.1;
+    { diameter: 2.5, height: 0.08, tessellation: 64 }, scene);
+  ground.position.y = -0.04;
   const gMat = new BABYLON.PBRMaterial('gMat', scene);
-  gMat.albedoColor = new BABYLON.Color3(0.12, 0.10, 0.08);
-  gMat.metallic = 0.2;
-  gMat.roughness = 0.85;
+  gMat.albedoColor = new BABYLON.Color3(0.10, 0.08, 0.06);
+  gMat.metallic = 0.3;
+  gMat.roughness = 0.8;
   ground.material = gMat;
-  ground.receiveShadow = true;
+  ground.receiveShadows = true;
 
+  // Subtle gold accent ring — thin and understated
   const ring = BABYLON.MeshBuilder.CreateTorus('ring',
-    { diameter: 4, thickness: 0.03, tessellation: 64 }, scene);
-  ring.position.y = -1.02;
+    { diameter: 2.5, thickness: 0.015, tessellation: 64 }, scene);
+  ring.position.y = 0.01;
   const rMat = new BABYLON.PBRMaterial('rMat', scene);
-  rMat.albedoColor = new BABYLON.Color3(0.78, 0.66, 0.32);
-  rMat.metallic = 0.9;
-  rMat.roughness = 0.2;
-  rMat.emissiveColor = new BABYLON.Color3(0.4, 0.3, 0.05);
+  rMat.albedoColor = new BABYLON.Color3(0.60, 0.50, 0.25);
+  rMat.metallic = 0.8;
+  rMat.roughness = 0.3;
+  rMat.emissiveColor = new BABYLON.Color3(0.15, 0.12, 0.03);
   ring.material = rMat;
 
   // ── State ───────────────────────────────────────────────────────────────────

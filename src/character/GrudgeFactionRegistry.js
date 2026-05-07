@@ -13,8 +13,10 @@ export const FACTIONS = {
     color: '#4a90d9',
     accentColor: '#c8a951',
     modelPath: './assets/glb/characters/races/human.glb',
+    texturePath: './assets/textures/races/human/texture.png',
+    normalMapPath: './assets/textures/races/human/normal.png',
     icon: null,
-    prefab: { targetHeight: 1.85, groundOffset: -1.1, yaw: Math.PI, materialTint: [0.95, 0.92, 0.88] },
+    prefab: { targetHeight: 1.85, groundOffset: 0, yaw: Math.PI, materialTint: [0.95, 0.92, 0.88] },
     stats: { str: 14, dex: 12, int: 12, vit: 14, wis: 11, lck: 11, cha: 13, end: 13 },
     description: 'Balanced warriors of the Crusade. Masters of sword and shield combat.',
   },
@@ -26,8 +28,10 @@ export const FACTIONS = {
     color: '#c0392b',
     accentColor: '#e67e22',
     modelPath: './assets/glb/characters/races/barbarian.glb',
+    texturePath: './assets/textures/races/barbarian/texture.png',
+    normalMapPath: './assets/textures/races/barbarian/normal.png',
     icon: null,
-    prefab: { targetHeight: 1.95, groundOffset: -1.1, yaw: Math.PI, materialTint: [0.92, 0.86, 0.80] },
+    prefab: { targetHeight: 1.95, groundOffset: 0, yaw: Math.PI, materialTint: [0.92, 0.86, 0.80] },
     stats: { str: 18, dex: 13, int: 8, vit: 16, wis: 8, lck: 10, cha: 9, end: 18 },
     description: 'Ferocious berserkers. Unmatched raw strength and endurance.',
   },
@@ -39,8 +43,10 @@ export const FACTIONS = {
     color: '#27ae60',
     accentColor: '#a8e6cf',
     modelPath: './assets/glb/characters/races/elf.glb',
+    texturePath: './assets/textures/races/elf/texture.png',
+    normalMapPath: './assets/textures/races/elf/normal.png',
     icon: null,
-    prefab: { targetHeight: 1.8, groundOffset: -1.1, yaw: Math.PI, materialTint: [0.88, 0.95, 0.90] },
+    prefab: { targetHeight: 1.8, groundOffset: 0, yaw: Math.PI, materialTint: [0.88, 0.95, 0.90] },
     stats: { str: 10, dex: 18, int: 15, vit: 10, wis: 14, lck: 14, cha: 12, end: 7 },
     description: 'Swift archers and mages of the Fabled. Unrivaled agility and arcane skill.',
   },
@@ -52,8 +58,10 @@ export const FACTIONS = {
     color: '#8e44ad',
     accentColor: '#f1c40f',
     modelPath: './assets/glb/characters/races/dwarf.glb',
+    texturePath: './assets/textures/races/dwarf/texture.png',
+    normalMapPath: './assets/textures/races/dwarf/normal.png',
     icon: null,
-    prefab: { targetHeight: 1.6, groundOffset: -1.1, yaw: Math.PI, materialTint: [0.90, 0.86, 0.82] },
+    prefab: { targetHeight: 1.6, groundOffset: 0, yaw: Math.PI, materialTint: [0.90, 0.86, 0.82] },
     stats: { str: 15, dex: 9, int: 13, vit: 18, wis: 14, lck: 12, cha: 9, end: 10 },
     description: 'Stout craftsmen and engineers. Exceptional vitality and wisdom.',
   },
@@ -65,8 +73,10 @@ export const FACTIONS = {
     color: '#2ecc71',
     accentColor: '#8B0000',
     modelPath: './assets/glb/characters/races/orc.glb',
+    texturePath: './assets/textures/races/orc/texture.png',
+    normalMapPath: './assets/textures/races/orc/normal.png',
     icon: null,
-    prefab: { targetHeight: 2.0, groundOffset: -1.1, yaw: Math.PI, materialTint: [0.84, 0.90, 0.82] },
+    prefab: { targetHeight: 2.0, groundOffset: 0, yaw: Math.PI, materialTint: [0.84, 0.90, 0.82] },
     stats: { str: 19, dex: 10, int: 8, vit: 17, wis: 7, lck: 9, cha: 8, end: 20 },
     description: 'Brutal warlords of the Legion. Overpowering strength and unstoppable endurance.',
   },
@@ -78,8 +88,10 @@ export const FACTIONS = {
     color: '#7f8c8d',
     accentColor: '#9b59b6',
     modelPath: './assets/glb/characters/races/undead.glb',
+    texturePath: './assets/textures/races/undead/texture.png',
+    normalMapPath: './assets/textures/races/undead/normal.png',
     icon: null,
-    prefab: { targetHeight: 1.9, groundOffset: -1.1, yaw: Math.PI, materialTint: [0.86, 0.88, 0.90] },
+    prefab: { targetHeight: 1.9, groundOffset: 0, yaw: Math.PI, materialTint: [0.86, 0.88, 0.90] },
     stats: { str: 12, dex: 11, int: 16, vit: 8, wis: 16, lck: 10, cha: 6, end: 21 },
     description: 'Deathbound legions. High intelligence and endurance beyond mortality.',
   },
@@ -230,4 +242,80 @@ export const ARMOR_SLOTS  = new Set(['body', 'arms', 'legs', 'head', 'shoulders'
 
 export function getFaction(raceId) {
   return FACTIONS[raceId] || null;
+}
+
+// ── Mesh part classification (mirrors reference characterBuilder.classifyMeshPart) ──
+
+export function classifyMeshPart(meshName) {
+  const n = meshName.toLowerCase();
+  if (n.includes('hair') || n.includes('beard') || n.includes('mustache') || n.includes('eyebrow')) return 'hair';
+  if (n.includes('head'))  return 'head';
+  if (n.includes('skin') || n.includes('naked') || n.includes('bare')) return 'skin';
+  if ((n.includes('hand') || n.includes('palm') || n.includes('finger')) &&
+      !n.includes('glove') && !n.includes('gauntlet')) return 'skin';
+  if (n.includes('body'))  return 'body';
+  if (n.includes('arms'))  return 'arms';
+  if (n.includes('legs'))  return 'legs';
+  if (n.includes('shoulderpad')) return 'shoulders';
+  if (n.includes('shield')) return 'shields';
+  if (n.includes('xtra_') || n.includes('_bag') || n.includes('_quiver') || n.includes('_wood')) return 'accessories';
+  if (n.includes('weapon_') || n.includes('sword') || n.includes('axe') || n.includes('hammer') ||
+      n.includes('staff') || n.includes('spear') || n.includes('bow') || n.includes('dagger') ||
+      n.includes('pick'))  return 'weapons';
+  return null;
+}
+
+/** Map part type → tint category */
+export function getTintCategory(partType) {
+  switch (partType) {
+    case 'body': case 'arms': case 'legs': case 'shoulders': return 'clothing';
+    case 'head': case 'skin': return 'skin';
+    case 'hair': return 'hair';
+    default: return 'none';
+  }
+}
+
+/**
+ * Per-slot PBR properties by armor type.
+ * Roughness/metalness ranges match physically-grounded values from the reference.
+ */
+export const SLOT_PBR_PROPS = {
+  metal: {
+    head:       { roughness: 0.55, metalness: 0.02 },
+    body:       { roughness: 0.34, metalness: 1.00 },
+    arms:       { roughness: 0.38, metalness: 1.00 },
+    legs:       { roughness: 0.42, metalness: 1.00 },
+    shoulders:  { roughness: 0.30, metalness: 1.00 },
+  },
+  leather: {
+    head:       { roughness: 0.55, metalness: 0.02 },
+    body:       { roughness: 0.65, metalness: 0.00 },
+    arms:       { roughness: 0.68, metalness: 0.00 },
+    legs:       { roughness: 0.72, metalness: 0.00 },
+    shoulders:  { roughness: 0.58, metalness: 0.00 },
+  },
+  cloth: {
+    head:       { roughness: 0.45, metalness: 0.02 },
+    body:       { roughness: 0.92, metalness: 0.00 },
+    arms:       { roughness: 0.95, metalness: 0.00 },
+    legs:       { roughness: 0.95, metalness: 0.00 },
+    shoulders:  { roughness: 0.85, metalness: 0.00 },
+  },
+  shared: {
+    weapons:    { roughness: 0.22, metalness: 1.00 },
+    shields:    { roughness: 0.28, metalness: 0.92 },
+    accessories:{ roughness: 0.55, metalness: 0.10 },
+    skin:       { roughness: 0.60, metalness: 0.00 },
+    hair:       { roughness: 0.55, metalness: 0.00 },
+    default:    { roughness: 0.60, metalness: 0.05 },
+  },
+};
+
+/** Get PBR props for a mesh part + armor type. */
+export function getSlotPBR(partType, armorType) {
+  const at = armorType || 'leather';
+  const set = SLOT_PBR_PROPS[at];
+  if (set && set[partType]) return set[partType];
+  if (SLOT_PBR_PROPS.shared[partType]) return SLOT_PBR_PROPS.shared[partType];
+  return SLOT_PBR_PROPS.shared.default;
 }
