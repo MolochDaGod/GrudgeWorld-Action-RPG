@@ -94,15 +94,110 @@ export const RACE_ORDER = ['human', 'barbarian', 'elf', 'dwarf', 'orc', 'undead'
  * NOTE: run.fbx and walk.fbx are not in the assets folder — use combatRun for movement.
  */
 export const ANIMATION_PACKS = {
-  idle:        './assets/glb/anims/base/idle.glb',
-  combatIdle:  './assets/glb/anims/base/combat_idle.glb',
-  combatRun:   './assets/glb/anims/base/combat_run.glb',
-  attack1:     './assets/glb/anims/base/attack1.glb',
-  attack2:     './assets/glb/anims/base/attack2.glb',
-  attack3:     './assets/glb/anims/base/attack3.glb',
-  death:       './assets/glb/anims/base/death.glb',
-  hit:         './assets/glb/anims/base/hit.glb',
-  block:       './assets/glb/anims/base/block.glb',
+  // -- Base locomotion / combat --
+  idle: "./assets/glb/anims/base/idle.glb",
+  combatIdle: "./assets/glb/anims/base/combat_idle.glb",
+  combatRun: "./assets/glb/anims/base/combat_run.glb",
+  attack1: "./assets/glb/anims/base/attack1.glb",
+  attack2: "./assets/glb/anims/base/attack2.glb",
+  attack3: "./assets/glb/anims/base/attack3.glb",
+  death: "./assets/glb/anims/base/death.glb",
+  hit: "./assets/glb/anims/base/hit.glb",
+  block: "./assets/glb/anims/base/block.glb",
+
+  // -- Melee weapon combos (extras) --
+  greatSwordSlash: "./assets/glb/anims/extras/great_sword_slash.glb",
+  greatSwordSlash2: "./assets/glb/anims/extras/great_sword_slash_1.glb",
+  dualWeaponCombo: "./assets/glb/anims/extras/dual_weapon_combo.glb",
+  twoHandSwordCombo: "./assets/glb/anims/extras/two_hand_sword_combo.glb",
+  twoHandClubCombo: "./assets/glb/anims/extras/two_hand_club_combo.glb",
+  oneHandSwordCombo: "./assets/glb/anims/extras/one_hand_sword_combo.glb",
+  oneHandClubCombo: "./assets/glb/anims/extras/one_hand_club_combo.glb",
+  swordAndShieldAttack: "./assets/glb/anims/extras/sword_and_shield_attack.glb",
+  swordAndShieldAttack2:
+    "./assets/glb/anims/extras/sword_and_shield_attack_1.glb",
+  swordAndShieldSlash: "./assets/glb/anims/extras/sword_and_shield_slash.glb",
+  swordAndShieldSlash2:
+    "./assets/glb/anims/extras/sword_and_shield_slash_1.glb",
+  swordAndShieldPowerUp:
+    "./assets/glb/anims/extras/sword_and_shield_power_up.glb",
+  swordAndShieldCasting:
+    "./assets/glb/anims/extras/sword_and_shield_casting.glb",
+  kick: "./assets/glb/anims/extras/kick.glb",
+  throwObject: "./assets/glb/anims/extras/throw_object.glb",
+
+  // -- Magic / spells --
+  spellCasting: "./assets/glb/anims/extras/spell_casting.glb",
+  standing1hCastSpell:
+    "./assets/glb/anims/extras/standing_1h_cast_spell_01.glb",
+  standing2hCastSpell:
+    "./assets/glb/anims/extras/standing_2h_cast_spell_01.glb",
+  standing2hMagicArea1:
+    "./assets/glb/anims/extras/standing_2h_magic_area_attack_01.glb",
+  standing2hMagicArea2:
+    "./assets/glb/anims/extras/standing_2h_magic_area_attack_02.glb",
+  standing2hMagicAtk1:
+    "./assets/glb/anims/extras/standing_2h_magic_attack_01.glb",
+  standing2hMagicAtk3:
+    "./assets/glb/anims/extras/standing_2h_magic_attack_03.glb",
+  standing2hMagicAtk4:
+    "./assets/glb/anims/extras/standing_2h_magic_attack_04.glb",
+
+  // -- Movement / utility --
+  crouchIdle: "./assets/glb/anims/extras/crouch_idle.glb",
+  standingToCrouch: "./assets/glb/anims/extras/standing_to_crouch.glb",
+  coverToStand: "./assets/glb/anims/extras/cover_to_stand.glb",
+  climbingLadder: "./assets/glb/anims/extras/climbing_ladder.glb",
+  swaggerWalk: "./assets/glb/anims/extras/swagger_walk.glb",
+  maleSittingPose: "./assets/glb/anims/extras/male_sitting_pose.glb",
+
+  // -- Emote / social --
+  standingTauntBattlecry:
+    "./assets/glb/anims/extras/standing_taunt_battlecry.glb",
+  pointing: "./assets/glb/anims/extras/pointing.glb",
+  patting: "./assets/glb/anims/extras/patting.glb",
+  reacting: "./assets/glb/anims/extras/reacting.glb",
+  lookOverShoulder: "./assets/glb/anims/extras/look_over_shoulder.glb",
+  disarmed: "./assets/glb/anims/extras/disarmed.glb",
+
+  // -- Dance --
+  bboyHipHopMove: "./assets/glb/anims/extras/bboy_hip_hop_move.glb",
+  hipHopDancing: "./assets/glb/anims/extras/hip_hop_dancing.glb",
+  sillyDancing: "./assets/glb/anims/extras/silly_dancing.glb",
+  northernSoulSpin: "./assets/glb/anims/extras/northern_soul_spin_combo.glb",
+  dancingRunningMan: "./assets/glb/anims/extras/dancing_running_man.glb",
+
+  // -- Jump / acrobatics (from builder source, with character mesh) --
+  greatSwordJumpAttack: "./assets/glb/anims/extras/great_sword_jump_attack.glb",
+  jumpAttack: "./assets/glb/anims/extras/jump_attack.glb",
+  jumping: "./assets/glb/anims/extras/jumping.glb",
+  jumpingDown: "./assets/glb/anims/extras/jumping_down.glb",
+  jumpInAir: "./assets/glb/anims/extras/jump_in_air.glb",
+  jumpLoop: "./assets/glb/anims/extras/jump_loop.glb",
+  stabbing: "./assets/glb/anims/extras/stabbing.glb",
+  tripping: "./assets/glb/anims/extras/tripping.glb",
+
+  // -- Race-specific source animations --
+  brbMageCast: "./assets/glb/anims/extras/brb_mage_cast.glb",
+  brbSpearmanAttack: "./assets/glb/anims/extras/brb_spearman_attack.glb",
+
+  // -- VFX mesh models --
+  vfxFireball: "./assets/glb/vfx/fireball.glb",
+  vfxFireballLow: "./assets/glb/vfx/fireball_low.glb",
+  vfxIceLance: "./assets/glb/vfx/ice_lance.glb",
+  vfxIceLanceLow: "./assets/glb/vfx/ice_lance_low.glb",
+  vfxPotion: "./assets/glb/vfx/potion.glb",
+};
+
+/**
+ * Race-specific animation overrides (keyed by race id).
+ * Values are partial ANIMATION_PACKS keys to override per-race.
+ */
+export const RACE_ANIM_OVERRIDES = {
+  barbarian: {
+    standingTauntBattlecry:
+      "./assets/glb/anims/extras/standing_taunt_battlecry.glb",
+  },
 };
 
 /**
