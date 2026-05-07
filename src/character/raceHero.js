@@ -126,6 +126,12 @@ export async function loadRaceCharacter(scene, raceId, parent, options = {}) {
 
     mat.backFaceCulling = true;
     mat.forceIrradianceInFragment = true;
+    // Ensure PBR materials are visible even without a valid environment map.
+    // Without IBL, PBR renders nearly black. environmentIntensity on the
+    // material + higher direct/specular ensures the character is always lit.
+    mat.environmentIntensity = 0.4;
+    mat.directIntensity = 1.5;
+    mat.specularIntensity = 0.8;
     mesh.material = mat;
 
     mesh.isPickable = false;
