@@ -221,15 +221,18 @@ export const RACE_ANIM_OVERRIDES = {
 //   Human/Elf/Dwarf/Orc/Undead:  Units_Body_A, Units_Arms_B, etc.
 //   Barbarian:                    body_A, arms_B, head_C (no "Units_" prefix)
 // Variant ranges widened to cover all races (barbarian body goes to H, head to J, etc.)
+// Weapon patterns use optional variant suffix (?:_([A-Z]))? so single-variant
+// weapons (e.g. ELF_weapon_axe, ORC_weapon_Hammer) still catalog correctly.
 export const SLOT_PATTERNS = {
   body:       /(?:Units_)?body_([A-H])/i,
   arms:       /(?:Units_)?arms_([A-E])/i,
   legs:       /(?:Units_)?legs_([A-D])/i,
   head:       /(?:Units_)?head_([A-P])/i,
-  shoulders:  /(?:Units_)?shoulderpads_([A-C])/i,
-  sword:      /weapon_sword_([A-C])/i,
-  axe:        /weapon_axe_([A-C])/i,
-  hammer:     /weapon_hammer_([A-B])/i,
+  shoulders:  /(?:Units_)?[Ss]houlderpads_([A-F])/i,
+  sword:      /weapon_sword(?:_([A-C]))?$/i,
+  axe:        /weapon_axe(?:_([A-C]))?$/i,
+  hammer:     /weapon_hammer(?:_([A-B]))?$/i,
+  mace:       /weapon_mace(?:_([A-C]))?$/i,
   pick:       /weapon_pick/i,
   spear:      /weapon_spear/i,
   bow:        /weapon_bow/i,
@@ -241,7 +244,7 @@ export const SLOT_PATTERNS = {
   quiver:     /Xtra_quiver/i,
 };
 
-export const WEAPON_SLOTS = new Set(['sword', 'axe', 'hammer', 'pick', 'spear', 'bow', 'staff', 'dagger']);
+export const WEAPON_SLOTS = new Set(['sword', 'axe', 'hammer', 'mace', 'pick', 'spear', 'bow', 'staff', 'dagger']);
 export const SHIELD_SLOTS = new Set(['shield']);
 export const ARMOR_SLOTS  = new Set(['body', 'arms', 'legs', 'head', 'shoulders']);
 
