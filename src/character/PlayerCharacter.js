@@ -11,8 +11,8 @@
  *   2. Any scene calls loadPlayerCharacter(scene, parentNode)
  *   3. Returns { hero, skeleton, raceChar, anim } ready for movement.js
  *
- * The old HumanBaseMesh_WithEquips.glb is only used as a last-resort
- * fallback if the race GLB fails to load.
+ * Falls back to a placeholder capsule if both the selected race and
+ * the Human race GLB fail to load.
  */
 
 import { loadRaceCharacter } from "./raceHero.js";

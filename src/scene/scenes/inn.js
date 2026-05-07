@@ -1,10 +1,9 @@
-import { loadHeroModel } from '../../character/hero.js';
+import { loadPlayerCharacter } from '../../character/PlayerCharacter.js';
 import { GrudgeCamera } from '../../utils/GrudgeCamera.js';
 import { GrudgeHUD }    from '../../utils/HUD.js';
 import { setupCamera }  from '../../utils/camera.js';   // fallback only
 import { setupPhysics } from '../../utils/physics.js';
 import { setupInputHandling } from '../../movement.js';
-import { setupAnim } from '../../utils/anim.js';
 import { loadingAnim } from "../../utils/loadingAnim.js";
 import { loadModels } from "../../utils/load.js";
 import { Health } from '../../character/health.js';
@@ -33,12 +32,11 @@ export async function createInn(engine) {
 
   // load all models in parallel
   const modelUrls = ["env/interior/inn/inn_map_procedural.glb"];
-  const heroModelPromise = loadHeroModel(scene, character);
-  const [heroModel, models] = await Promise.all([
-    heroModelPromise,
+  const [pc, models] = await Promise.all([
+    loadPlayerCharacter(scene, character),
     loadModels(scene, modelUrls),
   ]);
-  const { hero, skeleton } = heroModel;
+  const { hero, skeleton, anim } = pc;
 
   // Pass hero to GrudgeCamera now that it's loaded
   if (grudgeCam) {
@@ -48,7 +46,6 @@ export async function createInn(engine) {
     );
   }
 
-  let anim = setupAnim(scene, skeleton);
   setupInputHandling(
     scene,
     character,
@@ -65,8 +62,8 @@ export async function createInn(engine) {
 
   // ── HUD ────────────────────────────────────────────────────────────────────────────────
   const hud = new GrudgeHUD({
-    raceName: "Human",
-    factionColor: "#c8a951",
+    raceName: pc.raceName,
+    factionColor: pc.factionColor,
     maxHealth: 100,
   });
   // Patch takeDamage to keep the HUD in sync (Health has no onChange hook)
