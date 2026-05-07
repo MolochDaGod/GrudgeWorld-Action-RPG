@@ -13,7 +13,7 @@
  */
 
 import { loadRaceCharacter } from '../../character/raceHero.js';
-import { CharacterPanel }    from '../../character/CharacterPanel.js';
+import { WEAPON_SLOTS } from '../../character/GrudgeFactionRegistry.js';
 
 export async function createCharacterTest(engine) {
   const scene = new BABYLON.Scene(engine);
@@ -48,23 +48,22 @@ export async function createCharacterTest(engine) {
     scene.environmentIntensity = 0.8;
   } catch (_) { /* env map optional */ }
 
-  // ── Platform ───────────────────────────────────────────────────────────────
-  const ground = BABYLON.MeshBuilder.CreateCylinder('platform', { diameter: 4, height: 0.15, tessellation: 64 }, scene);
-  ground.position.y = -1.1;
+  // ── Platform (matches character_create.js) ─────────────────────────────────
+  const ground = BABYLON.MeshBuilder.CreateCylinder('platform', { diameter: 2.5, height: 0.08, tessellation: 64 }, scene);
+  ground.position.y = -0.04;
   const groundMat = new BABYLON.PBRMaterial('groundMat', scene);
-  groundMat.albedoColor = new BABYLON.Color3(0.12, 0.10, 0.08);
-  groundMat.metallic    = 0.2;
-  groundMat.roughness   = 0.85;
+  groundMat.albedoColor = new BABYLON.Color3(0.10, 0.08, 0.06);
+  groundMat.metallic    = 0.3;
+  groundMat.roughness   = 0.8;
   ground.material = groundMat;
 
-  // Border ring
-  const ring = BABYLON.MeshBuilder.CreateTorus('ring', { diameter: 4, thickness: 0.03, tessellation: 64 }, scene);
-  ring.position.y = -1.02;
+  const ring = BABYLON.MeshBuilder.CreateTorus('ring', { diameter: 2.5, thickness: 0.015, tessellation: 64 }, scene);
+  ring.position.y = 0.01;
   const ringMat = new BABYLON.PBRMaterial('ringMat', scene);
-  ringMat.albedoColor  = new BABYLON.Color3(0.78, 0.66, 0.32);
-  ringMat.metallic     = 0.9;
-  ringMat.roughness    = 0.2;
-  ringMat.emissiveColor = new BABYLON.Color3(0.4, 0.3, 0.05);
+  ringMat.albedoColor  = new BABYLON.Color3(0.60, 0.50, 0.25);
+  ringMat.metallic     = 0.8;
+  ringMat.roughness    = 0.3;
+  ringMat.emissiveColor = new BABYLON.Color3(0.15, 0.12, 0.03);
   ring.material = ringMat;
 
   // ── Background pillars (atmosphere) ───────────────────────────────────────
@@ -127,34 +126,14 @@ export async function createCharacterTest(engine) {
   toggleBtn.paddingBottom = '20px';
   gui.addControl(toggleBtn);
 
-  // ── Character Panel ────────────────────────────────────────────────────────
-  const panel = new CharacterPanel(
-    gui,
-    // onRaceChange
-    async (raceId) => {
-      await _switchRace(raceId);
-    },
-    // onEquipChange
-    (slot, variant) => {
-      if (!currentRaceChar) return;
-      const em = currentRaceChar.equipManager;
-      if (['sword','axe','hammer','pick','spear','bow','staff'].includes(slot)) {
-        em.equipWeapon(slot, variant);
-      } else if (slot === 'shield') {
-        em.equipShield(variant);
-      } else {
-        em.equip(slot, variant);
-      }
-    },
-    // onAnimPlay
-    (animKey) => {
-      if (!currentRaceChar) return;
-      const isLoop = !['death','hit','attack1','attack2','attack3'].includes(animKey);
-      currentRaceChar.playAnim(animKey, isLoop);
-    }
-  );
-
-  toggleBtn.onPointerClickObservable.add(() => panel.toggle());
+  // ── Simple race switch via number keys (no CharacterPanel dependency) ─────
+  toggleBtn.onPointerClickObservable.add(() => {
+    // Cycle through races on click
+    const races = ['human','barbarian','elf','dwarf','orc','undead'];
+    const cur = currentRaceChar ? currentRaceChar.raceId : 'human';
+    const next = races[(races.indexOf(cur) + 1) % races.length];
+    _switchRace(next);
+  });
 
   // Loading overlay
   const loadingText = new BABYLON.GUI.TextBlock('loading', 'Loading Character...');
@@ -175,15 +154,13 @@ export async function createCharacterTest(engine) {
     }
 
     try {
-      currentRaceChar = await loadRaceCharacter(scene, raceId, characterNode);
+      const selectedClass = (typeof CHAR_SELECT !== 'undefined' && CHAR_SELECT.class) || 'warrior';
+      currentRaceChar = await loadRaceCharacter(scene, raceId, characterNode, { classId: selectedClass });
 
       // Add to shadow gen
       for (const mesh of currentRaceChar.result.meshes) {
         shadowGen.addShadowCaster(mesh);
       }
-
-      // Refresh equipment panel to show actual slot variants
-      panel.refreshFromEquipManager(currentRaceChar.equipManager);
 
       loadingText.isVisible = false;
     } catch (err) {
@@ -195,9 +172,14 @@ export async function createCharacterTest(engine) {
 
   // ── Key bindings ───────────────────────────────────────────────────────────
   scene.actionManager = new BABYLON.ActionManager(scene);
+  // T key cycles races (same as clicking the ☰ button)
   scene.actionManager.registerAction(new BABYLON.ExecuteCodeAction(
     { trigger: BABYLON.ActionManager.OnKeyDownTrigger, parameter: 't' },
-    () => panel.toggle()
+    () => {
+      const races = ['human','barbarian','elf','dwarf','orc','undead'];
+      const cur = currentRaceChar ? currentRaceChar.raceId : 'human';
+      _switchRace(races[(races.indexOf(cur) + 1) % races.length]);
+    }
   ));
 
   // Number keys 1-6 to switch race
