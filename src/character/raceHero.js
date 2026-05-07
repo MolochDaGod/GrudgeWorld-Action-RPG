@@ -134,11 +134,18 @@ export async function loadRaceCharacter(scene, raceId, parent, options = {}) {
   console.log(`[raceHero] ${raceId}: ${result.meshes.length} meshes, tex=${raceTex ? 'ok' : 'fallback'}, normal=${normalTex ? 'ok' : 'none'}`);
 
   // ── 4. Skeleton / root-motion suppression ─────────────────────────────────
-  const skeleton = result.skeletons[0] || null;
+  // Some GLBs (elf) have multiple skeletons or an unusual root; pick the one
+  // with the most joints so retargeting works on all races.
+  let skeleton = null;
+  if (result.skeletons && result.skeletons.length > 0) {
+    skeleton = result.skeletons.reduce((best, s) =>
+      (!best || (s.bones?.length || 0) > (best.bones?.length || 0)) ? s : best, null);
+  }
   let rootMotionObserver = null;
   if (skeleton) {
     for (const bone of skeleton.bones) {
-      if (bone.name === 'Bip001' || bone.name === 'RootNode') {
+      const bn = bone.name;
+      if (bn === 'Bip001' || bn === 'RootNode' || bn === 'Bip001 Pelvis') {
         rootMotionObserver = scene.onBeforeRenderObservable.add(() => {
           bone.position.copyFromFloats(0, 0, 0);
         });

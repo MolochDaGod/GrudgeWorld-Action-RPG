@@ -55,13 +55,11 @@ export class GrudgeEquipmentManager {
         }
       }
 
-      // Keep uncataloged geometry visible (some race prefabs include body meshes
-      // not covered by slot naming). Hide only helper/empty nodes.
-      if (
-        !matched &&
-        mesh !== meshes[0] &&
-        (!mesh.getTotalVertices || mesh.getTotalVertices() === 0)
-      ) {
+      // Hide ALL uncataloged meshes. The old approach left uncataloged geometry
+      // visible, which caused stacked/oversized renders when slot patterns
+      // didn't match a race's naming convention. Only the equipment preset
+      // should control visibility.
+      if (!matched && mesh !== meshes[0]) {
         mesh.isVisible = false;
       }
     }

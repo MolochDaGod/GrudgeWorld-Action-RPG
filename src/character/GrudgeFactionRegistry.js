@@ -217,26 +217,31 @@ export const RACE_ANIM_OVERRIDES = {
  * Every race uses the same slot structure: body, arms, legs, head,
  * shoulders, weapons (R_hand), offhand (L_hand), shields (L_shield), extras.
  */
+// Patterns match BOTH naming conventions:
+//   Human/Elf/Dwarf/Orc/Undead:  Units_Body_A, Units_Arms_B, etc.
+//   Barbarian:                    body_A, arms_B, head_C (no "Units_" prefix)
+// Variant ranges widened to cover all races (barbarian body goes to H, head to J, etc.)
 export const SLOT_PATTERNS = {
-  body:       /Units_Body_([A-E])/i,
-  arms:       /Units_Arms_([A-D])/i,
-  legs:       /Units_Legs_([A-C])/i,
-  head:       /Units_head_([A-I])/i,
-  shoulders:  /Units_shoulderpads_([AB])/i,
-  sword:      /(weapon_sword|Units_sword)_([AB])/i,
-  axe:        /(weapon_axe|Units_axe)_([AB])/i,
-  hammer:     /(weapon_hammer|Units_hammer)_([AB])/i,
-  pick:       /(weapon_pick|Units_pick)/i,
-  spear:      /(weapon_spear|Units_spear)/i,
-  bow:        /(weapon_Bow|Units_Bow)/i,
-  staff:      /(weapon_staff|Units_staff)_([ABC])/i,
-  shield:     /(Shield|Units_shield)_([A-D])/i,
+  body:       /(?:Units_)?body_([A-H])/i,
+  arms:       /(?:Units_)?arms_([A-E])/i,
+  legs:       /(?:Units_)?legs_([A-D])/i,
+  head:       /(?:Units_)?head_([A-P])/i,
+  shoulders:  /(?:Units_)?shoulderpads_([A-C])/i,
+  sword:      /weapon_sword_([A-C])/i,
+  axe:        /weapon_axe_([A-C])/i,
+  hammer:     /weapon_hammer_([A-B])/i,
+  pick:       /weapon_pick/i,
+  spear:      /weapon_spear/i,
+  bow:        /weapon_bow/i,
+  staff:      /weapon_staff_([A-D])/i,
+  dagger:     /weapon_dagger/i,
+  shield:     /Shield_([A-D])/i,
   bag:        /Xtra_bag/i,
   wood:       /Xtra_wood/i,
   quiver:     /Xtra_quiver/i,
 };
 
-export const WEAPON_SLOTS = new Set(['sword', 'axe', 'hammer', 'pick', 'spear', 'bow', 'staff']);
+export const WEAPON_SLOTS = new Set(['sword', 'axe', 'hammer', 'pick', 'spear', 'bow', 'staff', 'dagger']);
 export const SHIELD_SLOTS = new Set(['shield']);
 export const ARMOR_SLOTS  = new Set(['body', 'arms', 'legs', 'head', 'shoulders']);
 
