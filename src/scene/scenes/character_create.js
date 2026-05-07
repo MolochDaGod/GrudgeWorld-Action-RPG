@@ -2,13 +2,14 @@
  * character_create.js
  * Grudge Warlords — Character Creation Scene (F4)
  *
- * Full Babylon.js scene for creating a character:
+ * Full-screen overlay character creator matching the WCS reference design:
+ * - Left column: 3D Babylon.js preview on a platform + race grid
+ * - Right column: Scrollable panels — name, class, stats, equipment (arrow cycling), anims
  * - Real data from Grudge ObjectStore (races, classes, attributes, factions)
- * - 6 race FBX models with equipment slot toggling
+ * - 6 race GLB models with equipment slot toggling
  * - 4 classes with weapon restrictions and starting attributes
  * - 136 animations across 4 packs (base + sword&shield + longbow + magic)
- * - Admin panel for object storage asset browsing
- * - Enter World → transitions to outdoor scene with selected config
+ * - Enter World → transitions to outdoor scene
  *
  * Access: F4 hotkey or ?scene=character_create
  */
@@ -32,6 +33,9 @@ export async function createCharacterCreate(engine) {
   const racesMap   = GrudgeSDK.getRacesMap(sdk.races);
   const classesMap = GrudgeSDK.getClassesMap(sdk.classes);
   const factionsMap = GrudgeSDK.getFactionsMap(sdk.factions);
+
+  const availableRaces = Object.keys(racesMap);
+  const availableClasses = Object.keys(classesMap);
 
   // ── Camera ──────────────────────────────────────────────────────────────────
   const camera = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2, Math.PI / 3.2, 5,
@@ -87,13 +91,15 @@ export async function createCharacterCreate(engine) {
   // ── State ───────────────────────────────────────────────────────────────────
   let activeRace = CHAR_SELECT?.race || 'human';
   let activeClass = CHAR_SELECT?.class || 'warrior';
+  if (!racesMap[activeRace]) activeRace = availableRaces[0] || RACE_ORDER[0] || 'human';
+  if (!classesMap[activeClass]) activeClass = availableClasses[0] || 'warrior';
   let currentRaceChar = null;
   const characterNode = new BABYLON.TransformNode('charRoot', scene);
   let autoRotate = true;
-  let classAnimActions = {}; // loaded class-specific anim actions
+  let classAnimActions = {};
 
-  // ── DOM UI ──────────────────────────────────────────────────────────────────
-  const ui = _buildUI(scene, racesMap, classesMap, factionsMap, {
+  // ── DOM UI (full-screen overlay) ────────────────────────────────────────────
+  const ui = _buildUI(racesMap, classesMap, factionsMap, FACTIONS, {
     onRaceChange: async (raceId) => {
       activeRace = raceId;
       await _switchRace(raceId);
@@ -112,24 +118,38 @@ export async function createCharacterCreate(engine) {
       else if (slot === 'shield') em.equipShield(variant);
       else em.equip(slot, variant);
     },
+    onEquipCycle: (slot, direction) => {
+      if (!currentRaceChar) return;
+      const summary = currentRaceChar.equipManager.getSummary();
+      const info = summary[slot];
+      if (!info || !info.variants.length) return;
+      let idx = info.variants.indexOf(info.equipped);
+      if (idx < 0) idx = 0;
+      idx += direction;
+      if (idx < 0) idx = 0;
+      if (idx >= info.variants.length) idx = info.variants.length - 1;
+      const v = info.variants[idx];
+      const em = currentRaceChar.equipManager;
+      if (WEAPON_SLOTS.has(slot)) em.equipWeapon(slot, v);
+      else if (slot === 'shield') em.equipShield(v);
+      else em.equip(slot, v);
+      _updateEquipPanel();
+    },
     onAnimPlay: (animKey) => {
       if (!currentRaceChar) return;
-      // Check class anims first, then base
       const allAnims = getAnimsForClass(activeClass);
       const def = allAnims[animKey];
       const loop = def ? def.loop : !['death','hit','attack1','attack2','attack3'].includes(animKey);
-
-      // Try class anim action first
       if (classAnimActions[animKey]) {
         _playAnimGroup(classAnimActions[animKey], loop);
       } else {
         currentRaceChar.playAnim(animKey, loop);
       }
     },
-    onEnterWorld: () => {
-      // Store selection globally and navigate to outdoor
+    onEnterWorld: (charName) => {
       CHAR_SELECT.race = activeRace;
       CHAR_SELECT.class = activeClass;
+      CHAR_SELECT.name = charName || '';
       CHAR_SELECT.equip = currentRaceChar?.equipManager?.equipped || {};
       if (typeof SCENE_MANAGER?.navigateTo === 'function') {
         SCENE_MANAGER.navigateTo('outdoor');
@@ -174,7 +194,6 @@ export async function createCharacterCreate(engine) {
         if (animGroups.length > 0) {
           const ag = animGroups[0];
           ag.name = key;
-          // Retarget to our skeleton
           const boneMap = {};
           for (const bone of skeleton.bones) boneMap[bone.name] = bone;
           for (const ta of ag.targetedAnimations) {
@@ -254,170 +273,158 @@ export async function createCharacterCreate(engine) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// DOM UI BUILDER — Real Grudge data, WCS styling, no placeholders
+// DOM UI BUILDER — Full-screen overlay, WCS-themed, reference-style layout
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function _buildUI(scene, racesMap, classesMap, factionsMap, callbacks) {
-  const GOLD = '#c8a951';
+const SLOT_ICONS = {
+  body: '👕', arms: '🧤', legs: '👖', head: '⛑', shoulders: '🦺',
+  sword: '⚔', axe: '🪓', hammer: '🔨', pick: '⛏', spear: '🔱',
+  bow: '🏹', staff: '🪄', shield: '🛡', bag: '🎒', wood: '🪵', quiver: '🏹',
+};
 
-  // ── Root container ──
+const SLOT_LABELS = {
+  body: 'Body', arms: 'Arms', legs: 'Legs', head: 'Helmet', shoulders: 'Shoulders',
+  sword: 'Sword', axe: 'Axe', hammer: 'Hammer', pick: 'Pick', spear: 'Spear',
+  bow: 'Bow', staff: 'Staff', shield: 'Shield', bag: 'Backpack', wood: 'Wood', quiver: 'Quiver',
+};
+
+function _buildUI(racesMap, classesMap, factionsMap, factionRegistry, callbacks) {
+  // ── Inject CSS + Fonts ──
+  _injectAssets();
+
   const root = document.createElement('div');
   root.id = 'grudge-char-create';
-  root.style.cssText = `
-    position:fixed; top:0; right:0; width:380px; height:100vh; overflow-y:auto;
-    background:rgba(8,10,18,0.94); border-left:1px solid rgba(200,169,81,0.18);
-    font-family:'Cinzel','Georgia',serif; color:#b8b8c0; z-index:9998;
-    scrollbar-width:thin; scrollbar-color:${GOLD} #111;
-  `;
 
-  // Inject Google Fonts if not present
-  if (!document.querySelector('link[href*="Cinzel"]')) {
-    const link = document.createElement('link');
-    link.href = 'https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Fira+Sans:wght@300;400;600&display=swap';
-    link.rel = 'stylesheet';
-    document.head.appendChild(link);
-  }
+  const raceOrder = ['human', 'barbarian', 'elf', 'dwarf', 'orc', 'undead'];
+  const initRace = CHAR_SELECT?.race || 'human';
+  const initClass = CHAR_SELECT?.class || 'warrior';
 
-  const _section = (title) => `<div style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;
-    letter-spacing:3px;color:${GOLD};padding:14px 16px 6px;
-    border-top:1px solid rgba(200,169,81,0.08);">${title}</div>`;
+  root.innerHTML = `
+    <div class="cc-overlay">
+      <div class="cc-panel">
+        <!-- HEADER -->
+        <div class="cc-header">
+          <div class="cc-header-title">
+            <h2>Grudge Warlords</h2>
+            <span class="cc-header-subtitle">Character Creation</span>
+          </div>
+        </div>
 
-  const _btn = (cls, extra = '') => `
-    padding:8px 6px;text-align:center;background:rgba(16,18,30,0.85);
-    border:1px solid rgba(255,255,255,0.04);border-radius:6px;cursor:pointer;
-    transition:all 0.2s;font-family:'Cinzel',serif;font-size:10px;font-weight:700;
-    color:#ddd;letter-spacing:1px;${extra}`;
+        <!-- CONTENT: preview left, controls right -->
+        <div class="cc-content">
+          <!-- LEFT: 3D Preview + Race Selection -->
+          <div class="cc-preview-col">
+            <div class="cc-preview-wrap">
+              <div class="cc-loading" id="cc-loading" style="display:none">
+                <div class="cc-spinner"></div>
+                <span>Loading model…</span>
+              </div>
+              <!-- The Babylon.js canvas covers the whole page behind this overlay.
+                   The preview-wrap is transparent so the 3D scene shows through. -->
+            </div>
+            <div class="cc-preview-hint">Drag to rotate | Scroll to zoom | Double-click to auto-rotate</div>
 
-  // ── Build HTML from real data ──
-  let html = `
-    <div style="text-align:center;padding:24px 16px 6px;
-      background:linear-gradient(180deg,rgba(200,169,81,0.08),transparent);">
-      <div style="font-size:20px;font-weight:900;letter-spacing:6px;color:${GOLD};
-        text-shadow:0 0 20px rgba(200,169,81,0.3);">GRUDGE WARLORDS</div>
-      <div style="font-size:10px;letter-spacing:4px;color:#666;margin-top:4px;">CHARACTER CREATION</div>
+            <!-- Race Grid -->
+            <div class="cc-race-section">
+              <div class="cc-race-row">
+                ${raceOrder.map(rId => {
+                  const r = racesMap[rId];
+                  const f = factionRegistry[rId];
+                  const name = r?.name || f?.name || rId;
+                  const desc = f?.faction || '';
+                  const color = f?.color || r?.color || '#ccc';
+                  return `<button class="cc-race-btn ${rId === initRace ? 'active' : ''}" data-race="${rId}">
+                    <span class="cc-race-icon" style="background:${color}"></span>
+                    <span class="cc-race-name">${name}</span>
+                    <span class="cc-race-desc">${desc}</span>
+                  </button>`;
+                }).join('')}
+              </div>
+            </div>
+          </div>
+
+          <!-- RIGHT: Scrollable Controls -->
+          <div class="cc-controls">
+            <div class="cc-tab-panels">
+              <!-- Character Name -->
+              <h3 class="cc-section-label">Character Name</h3>
+              <input type="text" id="cc-name-input" class="cc-name-input" placeholder="Enter a name…" maxlength="24" />
+              <div class="cc-section-divider"></div>
+
+              <!-- Class -->
+              <h3 class="cc-section-label">Class</h3>
+              <div class="cc-class-row" id="cc-class-row">
+                ${Object.entries(classesMap).map(([cId, c]) => {
+                  return `<button class="cc-class-btn ${cId === initClass ? 'active' : ''}" data-class="${cId}">
+                    <span class="cc-class-icon">${c.emoji || c.icon || '⚔'}</span>
+                    <span class="cc-class-name">${c.name}</span>
+                    <span class="cc-class-desc">${c.description ? c.description.substring(0, 50) + '…' : ''}</span>
+                    <span class="cc-class-bonuses">${_formatBonuses(c.startingAttributes)}</span>
+                  </button>`;
+                }).join('')}
+              </div>
+              <div class="cc-section-divider"></div>
+
+              <!-- Attributes -->
+              <h3 class="cc-section-label">Attributes</h3>
+              <div id="cc-stats"></div>
+              <div class="cc-section-divider"></div>
+
+              <!-- Equipment (arrow cycling) -->
+              <h3 class="cc-section-label">Equipment</h3>
+              <div id="cc-equip"></div>
+              <div class="cc-section-divider"></div>
+
+              <!-- Animations -->
+              <h3 class="cc-section-label">Animations</h3>
+              <div id="cc-anims" class="cc-anim-grid"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- FOOTER -->
+        <div class="cc-footer">
+          <button class="cc-enter-btn" id="cc-enter-world">Enter World</button>
+        </div>
+      </div>
     </div>
   `;
 
-  // ── Faction tabs ──
-  html += _section('FACTION');
-  html += '<div style="display:flex;gap:2px;padding:0 16px;">';
-  for (const [fId, fac] of Object.entries(factionsMap)) {
-    html += `<button class="cc-faction-tab" data-faction="${fId}" style="
-      flex:1;padding:6px 0;text-align:center;font-family:'Cinzel',serif;font-size:9px;
-      font-weight:700;letter-spacing:2px;cursor:pointer;border:1px solid transparent;
-      border-radius:4px;background:transparent;color:#666;transition:all 0.2s;">
-      ${(fac.name || fId).toUpperCase()}</button>`;
-  }
-  html += '</div>';
-
-  // ── Race grid (from real API data) ──
-  html += _section('RACE');
-  html += '<div id="cc-race-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:8px 16px;">';
-  const raceOrder = ['human', 'barbarian', 'elf', 'dwarf', 'orc', 'undead'];
-  for (const rId of raceOrder) {
-    const r = racesMap[rId];
-    if (!r) continue;
-    const fName = factionsMap[r.faction]?.name || r.faction;
-    html += `<div class="cc-race-card" data-race="${rId}" style="${_btn('', `position:relative;overflow:hidden;`)}">
-      <div style="color:${r.color || '#ccc'};font-size:11px;">${r.name}</div>
-      <div style="font-size:8px;color:#666;letter-spacing:1px;margin-top:2px;">${fName}</div>
-    </div>`;
-  }
-  html += '</div>';
-  html += '<div id="cc-race-desc" style="padding:4px 16px;font-size:11px;color:#999;font-style:italic;line-height:1.6;"></div>';
-
-  // ── Class grid (from real API data) ──
-  html += _section('CLASS');
-  html += '<div id="cc-class-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:8px 16px;">';
-  for (const [cId, c] of Object.entries(classesMap)) {
-    html += `<div class="cc-class-card" data-class="${cId}" style="${_btn()}">
-      <div style="font-size:16px;">${c.emoji || c.icon || '⚔'}</div>
-      <div style="font-size:10px;color:#ddd;margin-top:4px;">${c.name}</div>
-      <div style="font-size:8px;color:#666;margin-top:2px;">${c.description ? c.description.substring(0, 40) + '…' : ''}</div>
-    </div>`;
-  }
-  html += '</div>';
-
-  // ── Stats ──
-  html += _section('ATTRIBUTES');
-  html += '<div id="cc-stats"></div>';
-
-  // ── Equipment ──
-  html += _section('EQUIPMENT');
-  html += '<div id="cc-equip"></div>';
-
-  // ── Animations ──
-  html += _section('ANIMATIONS');
-  html += '<div id="cc-anims" style="display:flex;flex-wrap:wrap;gap:4px;padding:6px 16px;"></div>';
-
-  // ── Admin panel toggle ──
-  html += _section('ADMIN');
-  html += `<div style="padding:4px 16px;">
-    <button id="cc-admin-toggle" style="width:100%;padding:8px;font-family:'Cinzel',serif;
-      font-size:10px;letter-spacing:2px;background:rgba(139,32,32,0.15);
-      color:#d45050;border:1px solid rgba(212,80,80,0.3);border-radius:6px;
-      cursor:pointer;transition:all 0.2s;">⚙ OBJECT STORAGE BROWSER</button>
-  </div>`;
-  html += '<div id="cc-admin-panel" style="display:none;padding:8px 16px;"></div>';
-
-  // ── Enter World ──
-  html += `<div style="padding:20px 16px 40px;">
-    <button id="cc-enter-world" style="width:100%;padding:14px;font-family:'Cinzel',serif;
-      font-size:14px;font-weight:700;letter-spacing:4px;
-      background:linear-gradient(135deg,rgba(200,169,81,0.2),rgba(200,169,81,0.05));
-      color:${GOLD};border:1px solid rgba(200,169,81,0.45);border-radius:8px;
-      cursor:pointer;transition:all 0.3s;text-shadow:0 0 10px rgba(200,169,81,0.3);">
-      ENTER WORLD</button>
-  </div>`;
-
-  root.innerHTML = html;
   document.body.appendChild(root);
 
   // ── Wire events ─────────────────────────────────────────────────────────────
-  const state = { activeRace: CHAR_SELECT?.race || 'human', activeClass: CHAR_SELECT?.class || 'warrior' };
 
-  // Race cards
-  root.querySelectorAll('.cc-race-card').forEach(card => {
-    card.addEventListener('click', () => {
-      state.activeRace = card.dataset.race;
-      _highlightActive(root, '.cc-race-card', 'data-race', state.activeRace);
-      const r = racesMap[state.activeRace];
-      root.querySelector('#cc-race-desc').textContent = r?.description || r?.lore || '';
-      callbacks.onRaceChange(state.activeRace);
+  // Race buttons
+  root.querySelectorAll('.cc-race-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      root.querySelectorAll('.cc-race-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      callbacks.onRaceChange(btn.dataset.race);
     });
   });
 
-  // Class cards
-  root.querySelectorAll('.cc-class-card').forEach(card => {
-    card.addEventListener('click', () => {
-      state.activeClass = card.dataset.class;
-      _highlightActive(root, '.cc-class-card', 'data-class', state.activeClass);
-      callbacks.onClassChange(state.activeClass);
+  // Class buttons
+  root.querySelectorAll('.cc-class-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      root.querySelectorAll('.cc-class-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      callbacks.onClassChange(btn.dataset.class);
     });
   });
 
-  // Enter world
-  root.querySelector('#cc-enter-world').addEventListener('click', callbacks.onEnterWorld);
-
-  // Admin toggle
-  root.querySelector('#cc-admin-toggle').addEventListener('click', () => {
-    const panel = root.querySelector('#cc-admin-panel');
-    const isOpen = panel.style.display !== 'none';
-    panel.style.display = isOpen ? 'none' : 'block';
-    if (!isOpen) _buildAdminPanel(panel);
+  // Enter World
+  root.querySelector('#cc-enter-world').addEventListener('click', () => {
+    const nameInput = root.querySelector('#cc-name-input');
+    callbacks.onEnterWorld(nameInput ? nameInput.value.trim() : '');
   });
-
-  // Initial highlights
-  _highlightActive(root, '.cc-race-card', 'data-race', state.activeRace);
-  _highlightActive(root, '.cc-class-card', 'data-class', state.activeClass);
-  const rDesc = racesMap[state.activeRace];
-  root.querySelector('#cc-race-desc').textContent = rDesc?.description || rDesc?.lore || '';
 
   // ── Return UI handle ────────────────────────────────────────────────────────
   return {
     root,
+
     updateStats(raceBonuses, classAttrs) {
       const container = root.querySelector('#cc-stats');
+      if (!container) return;
       const ATTRS = ['Strength','Intellect','Vitality','Dexterity','Endurance','Wisdom','Agility','Tactics'];
       let h = '';
       for (const attr of ATTRS) {
@@ -425,62 +432,58 @@ function _buildUI(scene, racesMap, classesMap, factionsMap, callbacks) {
         const cVal = classAttrs[attr] || 0;
         const total = rVal + cVal;
         const pct = Math.min((total / 5) * 100, 100);
-        h += `<div style="display:flex;align-items:center;padding:3px 16px;gap:8px;">
-          <span style="width:52px;font-size:9px;font-weight:600;letter-spacing:1px;color:#888;">${attr.substring(0,3).toUpperCase()}</span>
-          <div style="flex:1;height:6px;background:#1a1a2e;border-radius:3px;overflow:hidden;">
-            <div style="height:100%;border-radius:3px;width:${pct}%;background:linear-gradient(90deg,${GOLD},#f0d070);transition:width 0.4s;"></div>
+        h += `<div class="cc-stat-row">
+          <span class="cc-stat-label">${attr.substring(0,3).toUpperCase()}</span>
+          <div class="cc-stat-bar-wrap">
+            <div class="cc-stat-bar" style="width:${pct}%"></div>
           </div>
-          <span style="width:22px;text-align:right;font-size:9px;color:#f0d070;font-weight:600;">${total}</span>
+          <span class="cc-stat-value">${total}</span>
         </div>`;
       }
       container.innerHTML = h;
     },
+
     updateEquipment(summary, allowedWeapons) {
       const container = root.querySelector('#cc-equip');
-      const SLOT_LABELS = { body:'Body', arms:'Arms', legs:'Legs', head:'Helmet', shoulders:'Shoulders',
-        sword:'Sword', axe:'Axe', hammer:'Hammer', pick:'Pick', spear:'Spear', bow:'Bow', staff:'Staff',
-        shield:'Shield', bag:'Backpack', wood:'Wood', quiver:'Quiver' };
-      let h = '';
+      if (!container) return;
+      let h = '<div class="cc-equip-grid">';
       for (const [slot, info] of Object.entries(summary)) {
         if (!info.variants.length) continue;
         const isWeapon = WEAPON_SLOTS.has(slot);
         const locked = isWeapon && !allowedWeapons.has(slot);
-        h += `<div style="display:flex;align-items:center;padding:3px 16px;gap:6px;">
-          <span style="width:80px;font-size:10px;color:${locked ? '#444' : '#888'};">
-            ${SLOT_LABELS[slot] || slot}${locked ? ' 🔒' : ''}</span>
-          <div style="display:flex;gap:3px;flex-wrap:wrap;">`;
-        for (const v of info.variants) {
-          const isActive = info.equipped === v;
-          h += `<button class="cc-equip-btn" data-slot="${slot}" data-variant="${v}"
-            ${locked ? 'disabled' : ''} style="
-            min-width:26px;height:22px;padding:0 6px;font-size:9px;font-weight:600;
-            background:${isActive ? 'rgba(200,169,81,0.25)' : 'transparent'};
-            color:${locked ? '#333' : GOLD};
-            border:1px solid ${isActive ? GOLD : locked ? '#1a1a1a' : 'rgba(200,169,81,0.2)'};
-            border-radius:3px;cursor:${locked ? 'not-allowed' : 'pointer'};transition:all 0.15s;">
-            ${v === 'default' ? '✦' : v}</button>`;
-        }
-        h += '</div></div>';
+        const icon = SLOT_ICONS[slot] || '📦';
+        const label = SLOT_LABELS[slot] || slot;
+        const idx = info.variants.indexOf(info.equipped);
+        const total = info.variants.length;
+
+        h += `<div class="cc-equip-slot" ${locked ? 'style="opacity:0.4"' : ''}>
+          <span class="cc-equip-icon">${icon}</span>
+          <span class="cc-equip-label">${label}${locked ? ' 🔒' : ''}</span>
+          <div class="cc-equip-arrows">
+            <button class="cc-eq-prev" data-slot="${slot}" ${locked || idx <= 0 ? 'disabled' : ''}>◀</button>
+            <span class="cc-equip-current">${idx + 1}/${total}</span>
+            <button class="cc-eq-next" data-slot="${slot}" ${locked || idx >= total - 1 ? 'disabled' : ''}>▶</button>
+          </div>
+        </div>`;
       }
+      h += '</div>';
       container.innerHTML = h;
-      // Wire equip buttons
-      container.querySelectorAll('.cc-equip-btn:not([disabled])').forEach(btn => {
-        btn.addEventListener('click', () => {
-          callbacks.onEquipChange(btn.dataset.slot, btn.dataset.variant);
-          // Re-render after equip change (will be called by parent)
-        });
+
+      // Wire arrow buttons
+      container.querySelectorAll('.cc-eq-prev').forEach(btn => {
+        btn.addEventListener('click', () => callbacks.onEquipCycle(btn.dataset.slot, -1));
+      });
+      container.querySelectorAll('.cc-eq-next').forEach(btn => {
+        btn.addEventListener('click', () => callbacks.onEquipCycle(btn.dataset.slot, 1));
       });
     },
+
     updateAnimations(anims) {
       const container = root.querySelector('#cc-anims');
+      if (!container) return;
       let h = '';
       for (const [key, def] of Object.entries(anims)) {
-        h += `<button class="cc-anim-btn" data-anim="${key}" style="
-          padding:5px 10px;font-size:9px;font-family:'Cinzel',serif;
-          background:transparent;color:${GOLD};
-          border:1px solid rgba(200,169,81,0.15);border-radius:3px;
-          cursor:pointer;transition:all 0.15s;">
-          ${def.label}</button>`;
+        h += `<button class="cc-anim-btn" data-anim="${key}">${def.label}</button>`;
       }
       container.innerHTML = h;
       container.querySelectorAll('.cc-anim-btn').forEach(btn => {
@@ -490,59 +493,31 @@ function _buildUI(scene, racesMap, classesMap, factionsMap, callbacks) {
   };
 }
 
-// ── Admin Panel (Object Storage Browser) ──────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════════════════════
 
-async function _buildAdminPanel(container) {
-  container.innerHTML = `
-    <div style="font-size:9px;color:#c8a951;letter-spacing:2px;margin-bottom:8px;">OBJECT STORAGE BROWSER</div>
-    <div style="display:flex;gap:4px;margin-bottom:8px;">
-      <button class="admin-cat" data-cat="weapons" style="flex:1;padding:4px;font-size:9px;
-        background:rgba(200,169,81,0.1);color:#c8a951;border:1px solid rgba(200,169,81,0.2);
-        border-radius:4px;cursor:pointer;">Weapons</button>
-      <button class="admin-cat" data-cat="armor" style="flex:1;padding:4px;font-size:9px;
-        background:rgba(200,169,81,0.1);color:#c8a951;border:1px solid rgba(200,169,81,0.2);
-        border-radius:4px;cursor:pointer;">Armor</button>
-      <button class="admin-cat" data-cat="races" style="flex:1;padding:4px;font-size:9px;
-        background:rgba(200,169,81,0.1);color:#c8a951;border:1px solid rgba(200,169,81,0.2);
-        border-radius:4px;cursor:pointer;">Races</button>
-      <button class="admin-cat" data-cat="classes" style="flex:1;padding:4px;font-size:9px;
-        background:rgba(200,169,81,0.1);color:#c8a951;border:1px solid rgba(200,169,81,0.2);
-        border-radius:4px;cursor:pointer;">Classes</button>
-    </div>
-    <div id="admin-results" style="max-height:300px;overflow-y:auto;font-size:10px;color:#888;"></div>
-  `;
-
-  container.querySelectorAll('.admin-cat').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const cat = btn.dataset.cat;
-      const resultsEl = container.querySelector('#admin-results');
-      resultsEl.innerHTML = '<div style="color:#666;padding:8px;">Loading from ObjectStore…</div>';
-
-      let data = null;
-      if (cat === 'weapons') data = await GrudgeSDK.fetchWeapons();
-      else if (cat === 'armor') data = await GrudgeSDK.fetchArmor();
-      else if (cat === 'races') data = await GrudgeSDK.fetchRaces();
-      else if (cat === 'classes') data = await GrudgeSDK.fetchClasses();
-
-      if (!data) {
-        resultsEl.innerHTML = '<div style="color:#d45050;padding:8px;">Failed to fetch from ObjectStore</div>';
-        return;
-      }
-
-      // Render results as JSON tree
-      resultsEl.innerHTML = `<pre style="white-space:pre-wrap;word-break:break-word;color:#888;
-        font-size:9px;font-family:monospace;padding:4px;background:rgba(0,0,0,0.3);
-        border-radius:4px;max-height:280px;overflow-y:auto;">${JSON.stringify(data, null, 2)}</pre>`;
-    });
-  });
+function _injectAssets() {
+  // Google Fonts
+  if (!document.querySelector('link[href*="Cinzel"]')) {
+    const link = document.createElement('link');
+    link.href = 'https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Fira+Sans:wght@300;400;600&display=swap';
+    link.rel = 'stylesheet';
+    document.head.appendChild(link);
+  }
+  // Character Creator CSS
+  if (!document.querySelector('link[href*="characterCreator"]')) {
+    const css = document.createElement('link');
+    css.href = './src/styles/characterCreator.css';
+    css.rel = 'stylesheet';
+    document.head.appendChild(css);
+  }
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-function _highlightActive(root, selector, attr, activeVal) {
-  root.querySelectorAll(selector).forEach(el => {
-    const isActive = el.getAttribute(attr) === activeVal;
-    el.style.borderColor = isActive ? '#c8a951' : 'rgba(255,255,255,0.04)';
-    el.style.background = isActive ? 'rgba(200,169,81,0.08)' : 'rgba(16,18,30,0.85)';
-  });
+function _formatBonuses(attrs) {
+  if (!attrs) return '';
+  return Object.entries(attrs)
+    .filter(([, v]) => v > 0)
+    .map(([k, v]) => `+${v} ${k.substring(0, 3)}`)
+    .join(', ');
 }
