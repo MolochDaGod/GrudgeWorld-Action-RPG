@@ -311,11 +311,29 @@ class RaceCharacter {
 
   dispose() {
     this.stopAnims();
+
+    // Dispose animation groups we loaded (prevents accumulation in scene.animationGroups)
+    for (const ag of Object.values(this._animActions)) {
+      try { ag.dispose(); } catch (_) {}
+    }
+    this._animActions = {};
+
     if (this._rootMotionObserver) {
       this._scene.onBeforeRenderObservable.remove(this._rootMotionObserver);
       this._rootMotionObserver = null;
     }
-    for (const mesh of this.result.meshes) mesh.dispose();
+
+    // Dispose materials we created (prevents accumulation in scene.materials)
+    for (const mesh of this.result.meshes) {
+      if (mesh.material && mesh.material.name.startsWith(this.raceId + '_')) {
+        mesh.material.dispose(false, true); // don't force dispose textures (shared cache)
+      }
+    }
+
+    // Dispose meshes
+    for (const mesh of this.result.meshes) {
+      try { mesh.dispose(); } catch (_) {}
+    }
     if (this.skeleton) this.skeleton.dispose();
   }
 }

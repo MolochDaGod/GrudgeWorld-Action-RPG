@@ -190,7 +190,12 @@ export async function createCharacterCreate(engine) {
     const pack = ANIM_CATALOG[packKey];
     if (!pack || !currentRaceChar?.skeleton) return;
 
+    // Dispose previous class animation groups to prevent accumulation
+    for (const ag of Object.values(classAnimActions)) {
+      try { ag.stop(); ag.dispose(); } catch (_) {}
+    }
     classAnimActions = {};
+    _currentClassAG = null;
     const skeleton = currentRaceChar.skeleton;
 
     const entries = Object.entries(pack.anims);
@@ -222,11 +227,16 @@ export async function createCharacterCreate(engine) {
 
   // ── Race switch ─────────────────────────────────────────────────────────────
   async function _switchRace(raceId) {
+    // Dispose previous class anims first (they reference the old skeleton)
+    for (const ag of Object.values(classAnimActions)) {
+      try { ag.stop(); ag.dispose(); } catch (_) {}
+    }
+    classAnimActions = {};
+    _currentClassAG = null;
+
     if (currentRaceChar) {
       currentRaceChar.dispose();
       currentRaceChar = null;
-      classAnimActions = {};
-      _currentClassAG = null;
     }
 
     try {
