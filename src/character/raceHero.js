@@ -174,9 +174,9 @@ export async function loadRaceCharacter(scene, raceId, parent, options = {}) {
   // by the physics capsule's world position in the outdoor scene).
   const savedParent = root.parent;
   root.parent = null;
-  root.position.setAll(0);
-  root.rotation.setAll(0);
-  root.scaling.setAll(1);
+  root.position.copyFromFloats(0, 0, 0);
+  root.rotation.copyFromFloats(0, 0, 0);
+  root.scaling.copyFromFloats(1, 1, 1);
   root.computeWorldMatrix(true);
   for (const m of result.meshes) m.computeWorldMatrix(true);
 
@@ -185,7 +185,7 @@ export async function loadRaceCharacter(scene, raceId, parent, options = {}) {
   const targetHeight = Math.max(0.2, prefab.targetHeight || 1.85);
   const scaleFactor = targetHeight / rawHeight;
 
-  root.scaling.setAll(scaleFactor);
+  root.scaling.copyFromFloats(scaleFactor, scaleFactor, scaleFactor);
   root.computeWorldMatrix(true);
   for (const m of result.meshes) m.computeWorldMatrix(true);
   const scaledBounds = _visibleBounds(result.meshes);
