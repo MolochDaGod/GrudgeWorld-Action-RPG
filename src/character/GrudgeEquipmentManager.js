@@ -35,9 +35,11 @@ export class GrudgeEquipmentManager {
     this._catalogedMeshes = new Set();
 
     for (const mesh of meshes) {
-      const name = mesh.name || '';
+      const name = mesh.name || "";
       // Strip prefix to get the base slot name
-      const stripped = name.startsWith(this.prefix) ? name.slice(this.prefix.length) : name;
+      const stripped = name.startsWith(this.prefix)
+        ? name.slice(this.prefix.length)
+        : name;
 
       let matched = false;
       for (const [slotName, pattern] of Object.entries(SLOT_PATTERNS)) {
@@ -47,7 +49,7 @@ export class GrudgeEquipmentManager {
           const variant =
             match[match.length - 1] && /^[A-Z]$/i.test(match[match.length - 1])
               ? match[match.length - 1].toUpperCase()
-              : 'A'; // single-variant items (spear, bow, dagger, etc.) use 'A'
+              : "A"; // single-variant items (spear, bow, dagger, etc.) use 'A'
           this.slots[slotName].push({ variant, mesh });
           this._catalogedMeshes.add(mesh);
           // Start with everything hidden
@@ -71,17 +73,30 @@ export class GrudgeEquipmentManager {
 
   /**
    * Equip a specific variant for an armor/misc slot.
-   * Hides all other variants in that slot.
+   * Hides all other variants in that slot. If the requested variant doesn't
+   * exist in the catalog, falls back to the first available variant so the
+   * slot never ends up fully hidden by a stale preset.
    * @param {string} slotName - e.g. 'body', 'head'
    * @param {string} variant - e.g. 'A', 'B', 'C'
    */
   equip(slotName, variant) {
     const entries = this.slots[slotName];
-    if (!entries) return;
-    for (const entry of entries) {
-      entry.mesh.isVisible = (entry.variant === variant);
+    if (!entries || entries.length === 0) return;
+    const wanted = String(variant || "").toUpperCase();
+    let resolved = entries.find((e) => e.variant === wanted) ? wanted : null;
+    if (!resolved) {
+      resolved = entries[0].variant;
+      if (wanted) {
+        console.warn(
+          `[GrudgeEquip] ${this.prefix}${slotName}: variant '${wanted}' not found ` +
+            `(have [${entries.map((e) => e.variant).join(",")}]) — falling back to '${resolved}'.`,
+        );
+      }
     }
-    this.equipped[slotName] = variant;
+    for (const entry of entries) {
+      entry.mesh.isVisible = entry.variant === resolved;
+    }
+    this.equipped[slotName] = resolved;
   }
 
   /**
@@ -89,7 +104,7 @@ export class GrudgeEquipmentManager {
    * @param {string} weaponType - e.g. 'sword', 'axe', 'bow', 'staff'
    * @param {string} variant - e.g. 'A', 'B'
    */
-  equipWeapon(weaponType, variant = 'A') {
+  equipWeapon(weaponType, variant = "A") {
     // Hide all weapon-slot meshes first
     for (const slot of WEAPON_SLOTS) {
       const entries = this.slots[slot] || [];
@@ -97,29 +112,26 @@ export class GrudgeEquipmentManager {
         entry.mesh.isVisible = false;
       }
     }
-    // Show the requested weapon variant
     const entries = this.slots[weaponType];
-    if (!entries) return;
-    for (const entry of entries) {
-      if (entry.variant === variant) {
-        entry.mesh.isVisible = true;
-        break;
-      }
+    if (!entries || entries.length === 0) {
+      console.warn(
+        `[GrudgeEquip] ${this.prefix}weapon '${weaponType}' not in catalog — hands empty.`,
+      );
+      return;
     }
-    this.equipped.weapon = { type: weaponType, variant };
+    const wanted = String(variant || "A").toUpperCase();
+    const hit = entries.find((e) => e.variant === wanted) || entries[0];
+    hit.mesh.isVisible = true;
+    this.equipped.weapon = { type: weaponType, variant: hit.variant };
   }
 
   /**
-   * Equip a shield variant.
+   * Equip a shield variant. Falls back to the first available variant if the
+   * requested letter isn't in the catalog.
    * @param {string} variant - e.g. 'A', 'B', 'C', 'D'
    */
-  equipShield(variant = 'A') {
-    const entries = this.slots['shield'];
-    if (!entries) return;
-    for (const entry of entries) {
-      entry.mesh.isVisible = (entry.variant === variant);
-    }
-    this.equipped.shield = variant;
+  equipShield(variant = "A") {
+    this.equip("shield", variant);
   }
 
   /**
@@ -141,13 +153,31 @@ export class GrudgeEquipmentManager {
    */
   applyPreset(preset, armorType) {
     if (armorType) this._armorType = armorType;
-    if (preset.body)      this.equip('body',      preset.body);
-    if (preset.arms)      this.equip('arms',      preset.arms);
-    if (preset.legs)      this.equip('legs',      preset.legs);
-    if (preset.head)      this.equip('head',      preset.head);
-    if (preset.shoulders) this.equip('shoulders', preset.shoulders);
-    if (preset.weapon)    this.equipWeapon(preset.weapon.type, preset.weapon.variant);
-    if (preset.shield)    this.equipShield(preset.shield);
+    const p = preset || {};
+    // Body/arms/legs/head are MANDATORY — if the preset omits a slot we still
+    // call equip() with 'A' so equip()'s fallback always picks a valid variant.
+    // This prevents the "invisible character" failure mode where a stale or
+    // mistyped preset hides every body mesh and leaves only a weapon visible.
+    this.equip("body", p.body || "A");
+    this.equip("arms", p.arms || "A");
+    this.equip("legs", p.legs || "A");
+    this.equip("head", p.head || "A");
+    if (p.shoulders) this.equip("shoulders", p.shoulders);
+    if (p.weapon) this.equipWeapon(p.weapon.type, p.weapon.variant);
+    if (p.shield) this.equipShield(p.shield);
+  }
+
+  /**
+   * Emergency render fallback — show body/arms/legs/head variant 'A' (or the
+   * first cataloged variant in each slot) and nothing else. Use when something
+   * goes wrong with the preset pipeline and you need *anything* on screen.
+   */
+  forceDefaults() {
+    this.hideAll();
+    this.equip("body", "A");
+    this.equip("arms", "A");
+    this.equip("legs", "A");
+    this.equip("head", "A");
   }
 
   /**
@@ -178,7 +208,7 @@ export class GrudgeEquipmentManager {
    * @returns {string[]}
    */
   getVariants(slotName) {
-    return (this.slots[slotName] || []).map(e => e.variant);
+    return (this.slots[slotName] || []).map((e) => e.variant);
   }
 
   /**
@@ -190,7 +220,7 @@ export class GrudgeEquipmentManager {
     for (const [slot, entries] of Object.entries(this.slots)) {
       const equippedVariant = this.equipped[slot] || null;
       out[slot] = {
-        variants: entries.map(e => e.variant),
+        variants: entries.map((e) => e.variant),
         equipped: equippedVariant,
         // armorType set by applyPreset — reliable for all races regardless of letter position
         equippedTier: ARMOR_SLOTS.has(slot) ? this._armorType : null,

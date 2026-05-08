@@ -40,6 +40,11 @@ function _loadTexture(scene, url, useSRGB) {
 
 // ── Visible BODY-only bounding box (skip weapons/shields — they attach to
 // hand bones far from centre and completely break the height calculation) ──────
+//
+// For SKINNED meshes from GLB the default bounding box is the bind-pose box of
+// the geometry, which often does NOT reflect the actual posed character. Always
+// call refreshBoundingInfo({ applySkeleton:true }) on visible skinned meshes
+// before reading bounds, otherwise the scale factor is wildly wrong.
 function _visibleBounds(meshes) {
   let minX = Infinity, minY = Infinity, minZ = Infinity;
   let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
@@ -47,20 +52,54 @@ function _visibleBounds(meshes) {
   for (const mesh of meshes) {
     if (!mesh.isVisible) continue;
     if (!mesh.getTotalVertices || mesh.getTotalVertices() <= 0) continue;
-    // Skip weapons and shields — they sit at hand-bone world positions and
-    // inflate the bounding box, producing a wildly wrong scale factor.
+    // Skip weapons, shields, and shoulderpads — they sit at hand-bone world
+    // positions or extend far from the torso and inflate the bounding box,
+    // producing a wrong scale factor.
     const n = (mesh.name || '').toLowerCase();
-    if (n.includes('weapon') || n.includes('shield') || n.includes('xtra')) continue;
+    if (n.includes('weapon') || n.includes('shield') || n.includes('xtra') || n.includes('shoulderpad')) continue;
+
+    // Refresh skinned-mesh bounds so they include skeleton transforms.
+    if (mesh.skeleton && typeof mesh.refreshBoundingInfo === 'function') {
+      try { mesh.refreshBoundingInfo({ applySkeleton: true, applyMorph: false }); }
+      catch (_) { try { mesh.refreshBoundingInfo(true); } catch (__) {} }
+    }
+
     const bi = mesh.getBoundingInfo && mesh.getBoundingInfo();
     if (!bi || !bi.boundingBox) continue;
     const mn = bi.boundingBox.minimumWorld;
     const mx = bi.boundingBox.maximumWorld;
+    // Reject obviously broken bounds (NaN / Infinity / collapsed).
+    if (!isFinite(mn.x) || !isFinite(mx.x) || !isFinite(mn.y) || !isFinite(mx.y)) continue;
+    if ((mx.y - mn.y) < 1e-4 && (mx.x - mn.x) < 1e-4) continue;
     minX = Math.min(minX, mn.x); minY = Math.min(minY, mn.y); minZ = Math.min(minZ, mn.z);
     maxX = Math.max(maxX, mx.x); maxY = Math.max(maxY, mx.y); maxZ = Math.max(maxZ, mx.z);
     any = true;
   }
   if (!any) return { min: BABYLON.Vector3.Zero(), max: new BABYLON.Vector3(1, 2, 1) };
   return { min: new BABYLON.Vector3(minX, minY, minZ), max: new BABYLON.Vector3(maxX, maxY, maxZ) };
+}
+
+// Estimate character height from the SKELETON (Bip001 hierarchy). Used as a
+// fallback / sanity check when skinned-mesh bounds are unreliable. Returns null
+// when the skeleton doesn't expose enough info.
+function _skeletonHeight(skeleton) {
+  if (!skeleton || !skeleton.bones) return null;
+  let pelvisY = null, headY = null;
+  for (const bone of skeleton.bones) {
+    const name = (bone.name || '').toLowerCase();
+    const m = bone.getAbsoluteMatrix && bone.getAbsoluteMatrix();
+    if (!m) continue;
+    const y = m.m ? m.m[13] : (m.getTranslation ? m.getTranslation().y : null);
+    if (y == null || !isFinite(y)) continue;
+    if (pelvisY == null && (name === 'bip001' || name === 'bip001 pelvis' || name === 'hips')) pelvisY = y;
+    if (name.includes('head') && !name.includes('headtop') && !name.includes('headend')) headY = Math.max(headY ?? -Infinity, y);
+  }
+  if (pelvisY == null || headY == null || !isFinite(pelvisY) || !isFinite(headY)) return null;
+  // Total height ≈ 1.85 × (head − pelvis) (head bone sits ~mid-skull, full
+  // figure ≈ 1.85× the spine length from pelvis to head bone in Bip001 rigs).
+  const spine = Math.abs(headY - pelvisY);
+  if (spine < 1e-3) return null;
+  return spine * 1.85;
 }
 
 /**
@@ -194,6 +233,23 @@ export async function loadRaceCharacter(scene, raceId, parent, options = {}) {
   const starterPreset = preset || _classPreset(raceId, classId);
   equipManager.applyPreset(starterPreset, armorType);
 
+  // ── Render guarantee ────────────────────────────────────────────────────
+  // If the catalog/preset combination ended up with an invisible character
+  // (e.g. SLOT_PATTERNS didn't match any meshes for this race), fall back to
+  // 'A' defaults, then to showAll() as a last resort. The character must
+  // never be a black silhouette of just a sword.
+  const _bodySlot = equipManager.slots['body'] || [];
+  const _bodyVisible = _bodySlot.some(e => e.mesh.isVisible);
+  if (!_bodyVisible) {
+    console.warn(`[raceHero] ${raceId}: body slot empty after preset — applying forceDefaults().`);
+    equipManager.forceDefaults();
+    const _bodyVisible2 = (equipManager.slots['body'] || []).some(e => e.mesh.isVisible);
+    if (!_bodyVisible2) {
+      console.warn(`[raceHero] ${raceId}: forceDefaults() also empty — calling showAll() as last resort.`);
+      equipManager.showAll();
+    }
+  }
+
   // Debug: log which meshes are now visible after preset
   if (DEBUG) {
     const visible = result.meshes.filter(m => m.isVisible).map(m => m.name);
@@ -209,15 +265,34 @@ export async function loadRaceCharacter(scene, raceId, parent, options = {}) {
   root.rotation.copyFromFloats(0, 0, 0);
   root.scaling.copyFromFloats(1, 1, 1);
   root.computeWorldMatrix(true);
+  // Force the skeleton's absolute transforms so refreshBoundingInfo picks up
+  // the actual posed character (otherwise GLB skinned meshes report a
+  // bind-pose box that has nothing to do with the visible silhouette).
+  if (skeleton && typeof skeleton.prepare === 'function') { try { skeleton.prepare(); } catch (_) {} }
+  if (skeleton && typeof skeleton.computeAbsoluteTransforms === 'function') {
+    try { skeleton.computeAbsoluteTransforms(true); } catch (_) {}
+  }
   for (const m of result.meshes) m.computeWorldMatrix(true);
 
   const bounds = _visibleBounds(result.meshes);
-  const rawHeight = Math.max(0.01, bounds.max.y - bounds.min.y);
+  let rawHeight = Math.max(0.01, bounds.max.y - bounds.min.y);
   const targetHeight = Math.max(0.2, prefab.targetHeight || 1.85);
+
+  // Sanity-check against the skeleton: if the visible-mesh bounds disagree
+  // wildly with the skeleton-derived height, trust the skeleton. This catches
+  // the common GLB bug where a skinned mesh reports a near-zero bind-pose box.
+  const skeletonH = _skeletonHeight(skeleton);
+  if (skeletonH && (rawHeight < skeletonH * 0.25 || rawHeight > skeletonH * 4)) {
+    console.warn(`[raceHero] ${raceId}: visible bounds height ${rawHeight.toFixed(3)} disagrees with skeleton height ${skeletonH.toFixed(3)} — using skeleton.`);
+    rawHeight = skeletonH;
+  }
   const scaleFactor = targetHeight / rawHeight;
 
   root.scaling.copyFromFloats(scaleFactor, scaleFactor, scaleFactor);
   root.computeWorldMatrix(true);
+  if (skeleton && typeof skeleton.computeAbsoluteTransforms === 'function') {
+    try { skeleton.computeAbsoluteTransforms(true); } catch (_) {}
+  }
   for (const m of result.meshes) m.computeWorldMatrix(true);
   const scaledBounds = _visibleBounds(result.meshes);
 
@@ -230,6 +305,12 @@ export async function loadRaceCharacter(scene, raceId, parent, options = {}) {
 
   // Face camera
   root.rotation.y = typeof prefab.yaw === 'number' ? prefab.yaw : Math.PI;
+
+  // Cache the final post-scale visible bounds so callers (preview camera) can
+  // frame the character without re-running the whole bounding pipeline.
+  const finalH = Math.max(0.01, scaledBounds.max.y - scaledBounds.min.y);
+  const finalW = Math.max(0.01, Math.max(scaledBounds.max.x - scaledBounds.min.x, scaledBounds.max.z - scaledBounds.min.z));
+  console.log(`[raceHero] ${raceId}: scaleFactor=${scaleFactor.toFixed(3)} rawH=${rawHeight.toFixed(3)} finalH=${finalH.toFixed(3)} finalW=${finalW.toFixed(3)}`);
 
   // Re-attach to parent
   root.parent = savedParent;
@@ -249,6 +330,7 @@ export async function loadRaceCharacter(scene, raceId, parent, options = {}) {
     raceId, classId, faction, root, skeleton, result,
     equipManager, animActions, scene, rootMotionObserver,
     raceTex, normalTex,
+    initialBounds: scaledBounds,
   });
 
   if (animActions['idle']) raceChar.playAnim('idle');
@@ -256,10 +338,25 @@ export async function loadRaceCharacter(scene, raceId, parent, options = {}) {
   return raceChar;
 }
 
+// Public helper used by character_create.js to frame the preview camera.
+export function computeVisibleBounds(raceChar) {
+  if (!raceChar || !raceChar.result) return null;
+  if (raceChar.skeleton && typeof raceChar.skeleton.computeAbsoluteTransforms === 'function') {
+    try { raceChar.skeleton.computeAbsoluteTransforms(true); } catch (_) {}
+  }
+  if (raceChar.root && typeof raceChar.root.computeWorldMatrix === 'function') {
+    raceChar.root.computeWorldMatrix(true);
+  }
+  for (const m of raceChar.result.meshes) {
+    if (typeof m.computeWorldMatrix === 'function') m.computeWorldMatrix(true);
+  }
+  return _visibleBounds(raceChar.result.meshes);
+}
+
 // ─── RaceCharacter ────────────────────────────────────────────────────────────
 
 class RaceCharacter {
-  constructor({ raceId, classId, faction, root, skeleton, result, equipManager, animActions, scene, rootMotionObserver, raceTex, normalTex }) {
+  constructor({ raceId, classId, faction, root, skeleton, result, equipManager, animActions, scene, rootMotionObserver, raceTex, normalTex, initialBounds }) {
     this.raceId       = raceId;
     this.classId      = classId;
     this.faction      = faction;
@@ -273,6 +370,7 @@ class RaceCharacter {
     this._rootMotionObserver = rootMotionObserver;
     this._raceTex     = raceTex;
     this._normalTex   = normalTex;
+    this.bounds       = initialBounds || null;
   }
 
   /**
