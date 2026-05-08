@@ -358,9 +358,10 @@ export const ARMOR_PRESETS = {
   // A = lightest/cloth, highest letter = heaviest/plate for each race.
   human: {
     // body A-E | arms A-D | legs A-C | shoulders A-B
+    // metal body_E has integrated pauldrons — separate shoulderpad B is oversized, use null
     cloth:   { body: 'A', arms: 'A', legs: 'A', shoulders: null },
     leather: { body: 'C', arms: 'B', legs: 'B', shoulders: 'A' },
-    metal:   { body: 'E', arms: 'D', legs: 'C', shoulders: 'B' },
+    metal:   { body: 'E', arms: 'D', legs: 'C', shoulders: null },
   },
   barbarian: {
     // body A-H | arms A-C | legs A-C | shoulders A-C
