@@ -18,6 +18,7 @@
 
 import { FACTIONS, ANIMATION_PACKS, classifyMeshPart, getSlotPBR, CLASS_BUILDS, ARMOR_PRESETS, CLASS_WEAPON_PRESETS } from './GrudgeFactionRegistry.js';
 import { GrudgeEquipmentManager } from './GrudgeEquipmentManager.js';
+import { AnimController, retargetAnimGroup } from './AnimController.js';
 
 // ── Texture cache (loaded once, reused across race switches) ────────────────
 const _textureCache = new Map();
@@ -371,6 +372,11 @@ class RaceCharacter {
     this._raceTex     = raceTex;
     this._normalTex   = normalTex;
     this.bounds       = initialBounds || null;
+
+    // Unified animation controller — manages both base and class animation packs
+    // with smooth cross-fades and a single blend observer at a time.
+    this.animCtrl = new AnimController(scene);
+    this.animCtrl.registerAll(animActions);
   }
 
   /**
@@ -404,48 +410,21 @@ class RaceCharacter {
   }
 
   playAnim(key, loop = true, blendTime = 0.15) {
-    const next = this._animActions[key];
-    if (!next) return;
-
-    const current = this._currentAnim;
-    if (current && current !== next) {
-      if (blendTime > 0) {
-        next.start(loop, 1.0, next.from, next.to, false);
-        next.setWeightForAllAnimatables(0);
-        let elapsed = 0;
-        const obs = this._scene.onBeforeRenderObservable.add(() => {
-          elapsed += this._scene.getEngine().getDeltaTime() / 1000;
-          const t = Math.min(elapsed / blendTime, 1);
-          next.setWeightForAllAnimatables(t);
-          if (current) current.setWeightForAllAnimatables(1 - t);
-          if (t >= 1) {
-            if (current) current.stop();
-            this._scene.onBeforeRenderObservable.remove(obs);
-          }
-        });
-      } else {
-        current.stop();
-        next.start(loop);
-      }
-    } else if (!current) {
-      next.start(loop);
-    }
-    this._currentAnim = next;
+    this.animCtrl.play(key, { loop, blendTime });
+    // Keep _currentAnim in sync for any external code that reads it directly.
+    this._currentAnim = this.animCtrl._current;
   }
 
   stopAnims() {
-    for (const ag of Object.values(this._animActions)) ag.stop();
+    this.animCtrl.stopAll();
     this._currentAnim = null;
   }
 
   dispose() {
-    this.stopAnims();
-
-    // Dispose animation groups we loaded (prevents accumulation in scene.animationGroups)
-    for (const ag of Object.values(this._animActions)) {
-      try { ag.dispose(); } catch (_) {}
-    }
+    // Dispose all registered animation groups (base + class) and clean up blend observers.
+    this.animCtrl.dispose();
     this._animActions = {};
+    this._currentAnim = null;
 
     if (this._rootMotionObserver) {
       this._scene.onBeforeRenderObservable.remove(this._rootMotionObserver);
@@ -484,7 +463,7 @@ async function _loadAnimations(scene, skeleton, animActions) {
         if (animGroups.length > 0) {
           const ag = animGroups[0];
           ag.name = key;
-          _retargetAnimGroup(ag, skeleton);
+          retargetAnimGroup(ag, skeleton);
           animActions[key] = ag;
         }
       } catch (_) { /* skip */ }
@@ -492,15 +471,7 @@ async function _loadAnimations(scene, skeleton, animActions) {
   );
 }
 
-function _retargetAnimGroup(animGroup, targetSkeleton) {
-  const boneMap = {};
-  for (const bone of targetSkeleton.bones) boneMap[bone.name] = bone;
-  for (const ta of animGroup.targetedAnimations) {
-    if (ta.target?.name && boneMap[ta.target.name]) {
-      ta.target = boneMap[ta.target.name];
-    }
-  }
-}
+// Bone retargeting is now handled by retargetAnimGroup() in AnimController.js.
 
 /**
  * Build the equipment preset for a race + class combination.

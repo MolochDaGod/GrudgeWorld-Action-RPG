@@ -15,6 +15,7 @@ import {
   loadRaceCharacter,
   computeVisibleBounds,
 } from "../../character/raceHero.js";
+import { retargetAnimGroup } from "../../character/AnimController.js";
 import {
   FACTIONS,
   RACE_ORDER,
@@ -41,6 +42,16 @@ export async function createCharacterCreate(engine) {
   const mainScene = new BABYLON.Scene(engine);
   mainScene.clearColor = new BABYLON.Color4(0.04, 0.04, 0.06, 1);
 
+  // Babylon requires at least one camera on every rendered scene.
+  // This dummy camera satisfies that requirement; the real preview lives on
+  // its own dedicated canvas / engine (previewScene below).
+  const _dummyCam = new BABYLON.FreeCamera(
+    "_mainDummy",
+    new BABYLON.Vector3(0, 0, -1),
+    mainScene,
+  );
+  _dummyCam.setTarget(BABYLON.Vector3.Zero());
+
   // ── Prefetch game data ──────────────────────────────────────────────────
   const sdk = await GrudgeSDK.prefetch();
   const racesMap = GrudgeSDK.getRacesMap(sdk.races);
@@ -52,9 +63,19 @@ export async function createCharacterCreate(engine) {
   if (!racesMap[activeRace]) activeRace = "human";
   if (!classesMap[activeClass]) activeClass = "warrior";
 
+  // Maps class → the class pack's idle animation key (used to auto-start the
+  // correct idle after _loadClassAnims finishes, replacing the base idle).
+  const CLASS_IDLE_KEY = {
+    warrior: "ss_idle",
+    ranger: "bow_idle",
+    mage: "mag_idle",
+    worge: "ss_idle",
+  };
+
   let currentRaceChar = null;
-  let classAnimActions = {};
-  let _currentClassAG = null;
+  // Tracks which animation keys in currentRaceChar.animCtrl belong to the
+  // class-specific pack (so they can be unregistered when the class changes).
+  let _classAnimKeys = new Set();
   let previewEngine = null;
   let previewScene = null;
   let previewCamera = null;
@@ -324,15 +345,9 @@ export async function createCharacterCreate(engine) {
 
   // ── Character loading ───────────────────────────────────────────────────
   async function _switchRace(raceId) {
-    // Dispose old class anims
-    for (const ag of Object.values(classAnimActions)) {
-      try {
-        ag.stop();
-        ag.dispose();
-      } catch (_) {}
-    }
-    classAnimActions = {};
-    _currentClassAG = null;
+    // Class anim keys are in animCtrl — animCtrl.dispose() (called by
+    // currentRaceChar.dispose() below) handles their cleanup.
+    _classAnimKeys.clear();
 
     // Dispose old character
     if (currentRaceChar) {
@@ -415,14 +430,12 @@ export async function createCharacterCreate(engine) {
   }
 
   async function _loadClassAnims(classId) {
-    for (const ag of Object.values(classAnimActions)) {
-      try {
-        ag.stop();
-        ag.dispose();
-      } catch (_) {}
+    // Unregister and dispose any previously-loaded class animations from the
+    // shared animCtrl — base animations remain registered and unaffected.
+    if (currentRaceChar?.animCtrl) {
+      currentRaceChar.animCtrl.unregisterAll(_classAnimKeys);
     }
-    classAnimActions = {};
-    _currentClassAG = null;
+    _classAnimKeys = new Set();
 
     const packKey = CLASS_ANIM_MAP[classId];
     const pack = ANIM_CATALOG[packKey];
@@ -453,19 +466,25 @@ export async function createCharacterCreate(engine) {
           if (animGroups.length > 0) {
             const ag = animGroups[0];
             ag.name = animKey;
-            const boneMap = {};
-            for (const bone of skeleton.bones) boneMap[bone.name] = bone;
-            for (const ta of ag.targetedAnimations) {
-              if (ta.target?.name && boneMap[ta.target.name])
-                ta.target = boneMap[ta.target.name];
-            }
-            classAnimActions[animKey] = ag;
+            retargetAnimGroup(ag, skeleton);
+            currentRaceChar.animCtrl.register(animKey, ag);
+            _classAnimKeys.add(animKey);
           }
         } catch (_) {}
       }),
     );
 
     _updateAnimGrid();
+
+    // Auto-start the class-specific idle with a smooth blend so both animation
+    // tiers cross-fade cleanly through the unified animCtrl.
+    const idleKey = CLASS_IDLE_KEY[classId];
+    if (idleKey && currentRaceChar?.animCtrl.has(idleKey)) {
+      currentRaceChar.animCtrl.play(idleKey, { loop: true, blendTime: 0.2 });
+    } else if (currentRaceChar) {
+      // Class pack not loaded (e.g. missing GLB files) — fall back to base idle.
+      currentRaceChar.animCtrl.play("idle", { loop: true, blendTime: 0.15 });
+    }
   }
 
   // ── UI update helpers ───────────────────────────────────────────────────
@@ -629,14 +648,9 @@ export async function createCharacterCreate(engine) {
         const key = btn.dataset.anim;
         const def = anims[key];
         const loop = def ? def.loop : true;
-        if (classAnimActions[key]) {
-          if (_currentClassAG && _currentClassAG !== classAnimActions[key])
-            _currentClassAG.stop();
-          classAnimActions[key].start(loop, 1.0);
-          _currentClassAG = classAnimActions[key];
-        } else {
-          currentRaceChar.playAnim(key, loop);
-        }
+        // Both base and class animations live in the same animCtrl registry;
+        // play() handles the cross-fade automatically.
+        currentRaceChar.animCtrl.play(key, { loop, blendTime: 0.15 });
       });
     });
   }
@@ -651,12 +665,9 @@ export async function createCharacterCreate(engine) {
     } catch (_) {}
     if (previewEngine) {
       previewEngine.stopRenderLoop();
+      // currentRaceChar.dispose() calls animCtrl.dispose() which handles all
+      // registered animation groups (base + class) cleanly.
       if (currentRaceChar) currentRaceChar.dispose();
-      for (const ag of Object.values(classAnimActions)) {
-        try {
-          ag.dispose();
-        } catch (_) {}
-      }
       previewScene?.dispose();
       previewEngine.dispose();
     }
