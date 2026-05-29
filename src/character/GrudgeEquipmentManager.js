@@ -148,20 +148,37 @@ export class GrudgeEquipmentManager {
 
   /**
    * Apply a full equipment preset from a plain object.
+   * Explicitly hides shields, weapons, shoulders, and extras that are NOT
+   * in the preset — prevents stale gear from persisting across class switches.
    * @param {Object} preset - e.g. { body:'B', head:'C', weapon:{type:'sword',variant:'A'}, shield:'B' }
    * @param {string} [armorType] - 'cloth'|'leather'|'metal' — stored for getSummary() tier label
    */
   applyPreset(preset, armorType) {
     if (armorType) this._armorType = armorType;
     const p = preset || {};
+
+    // ── 1. Always hide ALL weapon, shield, shoulder, and extra slots first ────
+    // This prevents stale equipment from persisting when switching classes
+    // (e.g. Warrior→Worge: shield must disappear).
+    for (const slot of WEAPON_SLOTS) this.unequip(slot);
+    for (const slot of SHIELD_SLOTS) this.unequip(slot);
+    // Extras (bag, wood, quiver) should be hidden by default — only shown if
+    // the preset explicitly requests them.
+    this.unequip('bag');
+    this.unequip('wood');
+    this.unequip('quiver');
+    // Shoulders only show for presets that include them (cloth classes don't).
+    this.unequip('shoulders');
+
+    // ── 2. Equip mandatory armor slots ───────────────────────────────────────
     // Body/arms/legs/head are MANDATORY — if the preset omits a slot we still
     // call equip() with 'A' so equip()'s fallback always picks a valid variant.
-    // This prevents the "invisible character" failure mode where a stale or
-    // mistyped preset hides every body mesh and leaves only a weapon visible.
     this.equip("body", p.body || "A");
     this.equip("arms", p.arms || "A");
     this.equip("legs", p.legs || "A");
     this.equip("head", p.head || "A");
+
+    // ── 3. Equip optional slots only if present in preset ────────────────────
     if (p.shoulders) this.equip("shoulders", p.shoulders);
     if (p.weapon) this.equipWeapon(p.weapon.type, p.weapon.variant);
     if (p.shield) this.equipShield(p.shield);

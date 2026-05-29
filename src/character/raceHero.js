@@ -228,11 +228,20 @@ export async function loadRaceCharacter(scene, raceId, parent, options = {}) {
   }
   let rootMotionObserver = null;
   if (skeleton) {
+    // Suppress horizontal root-motion drift from Mixamo animations that bake
+    // positional movement into the Bip001/Pelvis bone. We must NOT zero the
+    // Y position because Bip001 has a baked rest-pose Y offset (pelvis height
+    // above ground ~0.735 in the Toon_RTS models). Zeroing Y would collapse
+    // the character flat to the ground.
     for (const bone of skeleton.bones) {
       const bn = bone.name;
       if (bn === 'Bip001' || bn === 'RootNode' || bn === 'Bip001 Pelvis') {
+        // Capture the rest-pose position from the GLB (before any animation plays)
+        const restPos = bone.position.clone();
         rootMotionObserver = scene.onBeforeRenderObservable.add(() => {
-          bone.position.copyFromFloats(0, 0, 0);
+          // Keep the rest-pose Y (pelvis height), zero only XZ drift
+          bone.position.x = restPos.x;
+          bone.position.z = restPos.z;
         });
         break;
       }
