@@ -1,10 +1,19 @@
 """
 inject_textures.py
 ==================
-Replaces placeholder 1x1 textures in race GLBs with real TGA/PNG textures.
+⚠️  DEPRECATED — This script is no longer needed.
 
-Usage:
-  python scripts/inject_textures.py
+raceHero.js now creates fresh PBR materials and applies external PNG textures
+from assets/textures/races/{race}/texture.png + normal.png for ALL 6 races.
+Embedding TGA textures into the GLB is wasted bandwidth (the embedded textures
+are overridden by the external PBR material pipeline anyway).
+
+The production GLBs in assets/glb/characters/races/ should be the mesh-only
+"fresh" conversions from assets/glb/fresh/characters/races/ (~250-440KB each).
+
+Original purpose:
+  Replaced placeholder 1x1 textures in race GLBs with real TGA/PNG textures.
+  Only covered human, barbarian, dwarf — elf/orc/undead were never added.
 
 Requires: pip install pygltflib Pillow
 """

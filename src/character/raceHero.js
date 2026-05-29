@@ -195,12 +195,36 @@ export async function loadRaceCharacter(scene, raceId, parent, options = {}) {
   console.log(`[raceHero] ${raceId}: ${result.meshes.length} meshes, tex=${raceTex ? 'ok' : 'fallback'}, normal=${normalTex ? 'ok' : 'none'}`);
 
   // ── 4. Skeleton / root-motion suppression ─────────────────────────────────
-  // Some GLBs (elf) have multiple skeletons or an unusual root; pick the one
-  // with the most joints so retargeting works on all races.
+  // GLBs from the Toon_RTS asset pack split meshes into per-part skins, each
+  // with only the joints that affect that part (e.g. legs skin = 6 joints,
+  // body skin = 14 joints, arms skin = 6 joints). No single skin has all 18
+  // Bip001 bones. Pick the largest skeleton then merge in any bones found in
+  // other skeletons — this ensures animation retargeting can reach every bone
+  // (including R/L Hand which are only in the arms skin).
   let skeleton = null;
   if (result.skeletons && result.skeletons.length > 0) {
     skeleton = result.skeletons.reduce((best, s) =>
       (!best || (s.bones?.length || 0) > (best.bones?.length || 0)) ? s : best, null);
+
+    // Merge missing bones from other skeletons into the primary one
+    if (result.skeletons.length > 1 && skeleton) {
+      const existingNames = new Set(skeleton.bones.map(b => b.name));
+      for (const otherSkel of result.skeletons) {
+        if (otherSkel === skeleton) continue;
+        for (const bone of otherSkel.bones) {
+          if (!existingNames.has(bone.name)) {
+            skeleton.bones.push(bone);
+            existingNames.add(bone.name);
+          }
+        }
+      }
+      // Log how many bones were merged (existingNames started with the primary
+      // skeleton's bones, so any additions came from other skins).
+      const merged = skeleton.bones.length - (existingNames.size - (skeleton.bones.length - existingNames.size));
+      if (merged > 0) {
+        console.log(`[raceHero] ${raceId}: merged ${skeleton.bones.length} bones from ${result.skeletons.length} skins`);
+      }
+    }
   }
   let rootMotionObserver = null;
   if (skeleton) {
